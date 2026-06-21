@@ -9,6 +9,7 @@ import { HabitatMapPage } from './pages/HabitatMapPage';
 import { LabPage } from './pages/LabPage';
 import { ArchivePage } from './pages/ArchivePage';
 import { ArchiveDetailPage } from './pages/ArchiveDetailPage';
+import { MetabolismWorkshopPage } from './pages/MetabolismWorkshopPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/lab" element={<LabPage />} />
             <Route path="/archive" element={<ArchivePage />} />
             <Route path="/archive/:id" element={<ArchiveDetailPage />} />
+            <Route path="/metabolism" element={<MetabolismWorkshopPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>

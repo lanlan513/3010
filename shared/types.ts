@@ -208,3 +208,74 @@ export const ERA_LABELS: Record<DiscoveryEvent['era'], string> = {
   modern: '近代',
   contemporary: '当代',
 };
+
+export type BiogeochemicalCycle = 'carbon' | 'nitrogen' | 'sulfur';
+
+export const CYCLE_LABELS: Record<BiogeochemicalCycle, string> = {
+  carbon: '碳循环',
+  nitrogen: '氮循环',
+  sulfur: '硫循环',
+};
+
+export const CYCLE_COLORS: Record<BiogeochemicalCycle, string> = {
+  carbon: '#00ffc8',
+  nitrogen: '#3498db',
+  sulfur: '#f1c40f',
+};
+
+export type MetabolismType = 'aerobic_respiration' | 'anaerobic_respiration' | 'fermentation' | 'photosynthesis' | 'chemosynthesis' | 'nitrogen_fixation' | 'nitrification' | 'denitrification' | 'sulfate_reduction' | 'sulfur_oxidation' | 'methanogenesis' | 'methanotrophy';
+
+export const METABOLISM_TYPE_LABELS: Record<MetabolismType, string> = {
+  aerobic_respiration: '有氧呼吸',
+  anaerobic_respiration: '无氧呼吸',
+  fermentation: '发酵',
+  photosynthesis: '光合作用',
+  chemosynthesis: '化能合成',
+  nitrogen_fixation: '固氮作用',
+  nitrification: '硝化作用',
+  denitrification: '反硝化作用',
+  sulfate_reduction: '硫酸盐还原',
+  sulfur_oxidation: '硫氧化',
+  methanogenesis: '产甲烷作用',
+  methanotrophy: '甲烷氧化',
+};
+
+export interface MetabolicPathwayStep {
+  id: string;
+  label: string;
+  description: string;
+  reactants: string[];
+  products: string[];
+  energyOutput: string;
+  microbeIds: number[];
+  metabolismType: MetabolismType;
+}
+
+export interface CycleFlowEdge {
+  from: string;
+  to: string;
+  label: string;
+  microbeIds: number[];
+  metabolismType: MetabolismType;
+}
+
+export interface BiogeochemicalCycleData {
+  cycle: BiogeochemicalCycle;
+  title: string;
+  subtitle: string;
+  description: string;
+  steps: MetabolicPathwayStep[];
+  edges: CycleFlowEdge[];
+}
+
+export interface MicrobeMetabolismProfile {
+  microbeId: number;
+  microbeName: string;
+  pathways: {
+    cycle: BiogeochemicalCycle;
+    stepId: string;
+    role: string;
+    metabolismType: MetabolismType;
+    efficiency: number;
+  }[];
+}
