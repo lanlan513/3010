@@ -21,6 +21,7 @@ export default {
           purple: "#9b59b6",
           red: "#e74c3c",
           gold: "#f1c40f",
+          blue: "#3498db",
         },
         text: {
           light: "#e8f5f2",

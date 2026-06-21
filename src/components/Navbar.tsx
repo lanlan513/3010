@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Dna, Search, Menu, X, MapPin, Microscope, BookOpen, Atom, Users } from 'lucide-react';
+import { Home, Dna, Search, Menu, X, MapPin, Microscope, BookOpen, Atom, Users, BarChart3 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export function Navbar() {
@@ -15,6 +15,7 @@ export function Navbar() {
 
   const navItems = [
     { to: '/', label: '首页大厅', icon: Home },
+    { to: '/ability-atlas', label: '能力图鉴', icon: BarChart3 },
     { to: '/habitat-map', label: '生存地图', icon: MapPin },
     { to: '/archive', label: '档案考古馆', icon: BookOpen },
     { to: '/metabolism', label: '代谢工坊', icon: Atom },
@@ -70,7 +71,7 @@ export function Navbar() {
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  {(item.to === '/' || item.to === '/habitat-map' || item.to === '/metabolism' || item.to === '/lab' || item.to === '/collaboration') && <Icon className="w-4 h-4" />}
+                  {(item.to === '/' || item.to === '/ability-atlas' || item.to === '/habitat-map' || item.to === '/metabolism' || item.to === '/lab' || item.to === '/collaboration' || item.to === '/archive') && <Icon className="w-4 h-4" />}
                   {item.label}
                 </span>
                 {isActive && (

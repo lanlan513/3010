@@ -11,6 +11,7 @@ import { ArchivePage } from './pages/ArchivePage';
 import { ArchiveDetailPage } from './pages/ArchiveDetailPage';
 import { MetabolismWorkshopPage } from './pages/MetabolismWorkshopPage';
 import { CollaborationLabPage } from './pages/CollaborationLabPage';
+import { AbilityAtlasPage } from './pages/AbilityAtlasPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -30,6 +31,7 @@ export default function App() {
             <Route path="/archive/:id" element={<ArchiveDetailPage />} />
             <Route path="/metabolism" element={<MetabolismWorkshopPage />} />
             <Route path="/collaboration" element={<CollaborationLabPage />} />
+            <Route path="/ability-atlas" element={<AbilityAtlasPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
