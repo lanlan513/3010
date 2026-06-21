@@ -507,3 +507,78 @@ export interface AbilityRankItem {
   avgStrength: number;
   dimension: AbilityDimension;
 }
+
+export type IndustrialCategory =
+  | 'food_fermentation'
+  | 'wastewater_treatment'
+  | 'biopharmaceutical'
+  | 'agricultural_improvement'
+  | 'biofuel_production'
+  | 'environmental_remediation';
+
+export const INDUSTRIAL_CATEGORY_LABELS: Record<IndustrialCategory, string> = {
+  food_fermentation: '食品发酵',
+  wastewater_treatment: '污水处理',
+  biopharmaceutical: '生物制药',
+  agricultural_improvement: '农业改良',
+  biofuel_production: '生物燃料',
+  environmental_remediation: '环境修复',
+};
+
+export const INDUSTRIAL_CATEGORY_COLORS: Record<IndustrialCategory, string> = {
+  food_fermentation: '#f39c12',
+  wastewater_treatment: '#3498db',
+  biopharmaceutical: '#9b59b6',
+  agricultural_improvement: '#2ecc71',
+  biofuel_production: '#e67e22',
+  environmental_remediation: '#1abc9c',
+};
+
+export const INDUSTRIAL_CATEGORY_DESCRIPTIONS: Record<IndustrialCategory, string> = {
+  food_fermentation: '利用微生物发酵工艺生产酒类、乳制品、调味品、发酵食品等',
+  wastewater_treatment: '通过微生物代谢降解污水中的有机污染物和有害物质',
+  biopharmaceutical: '利用微生物作为细胞工厂生产抗生素、疫苗、重组蛋白等药物',
+  agricultural_improvement: '通过微生物促进作物生长、防治病虫害、改良土壤质量',
+  biofuel_production: '利用微生物发酵生物质生产乙醇、丁醇、甲烷等可再生能源',
+  environmental_remediation: '利用微生物降解环境中的石油、重金属、农药等污染物',
+};
+
+export interface ProcessStep {
+  id: string;
+  order: number;
+  title: string;
+  description: string;
+  duration?: string;
+  temperature?: string;
+  ph?: string;
+  keyMicrobeIds?: number[];
+}
+
+export interface RelatedMicrobe {
+  microbeId: number;
+  role: string;
+  importance: 'primary' | 'secondary' | 'supporting';
+  contribution: string;
+}
+
+export interface IndustrialApplication {
+  id: string;
+  title: string;
+  category: IndustrialCategory;
+  subtitle: string;
+  summary: string;
+  description: string;
+  history: string;
+  impact: string;
+  advantages: string[];
+  challenges: string[];
+  relatedMicrobes: RelatedMicrobe[];
+  processSteps: ProcessStep[];
+  products: string[];
+  scale: 'laboratory' | 'pilot' | 'industrial' | 'global';
+  imageUrl?: string;
+  keyMetrics: {
+    label: string;
+    value: string;
+  }[];
+}

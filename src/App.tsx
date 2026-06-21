@@ -12,6 +12,8 @@ import { ArchiveDetailPage } from './pages/ArchiveDetailPage';
 import { MetabolismWorkshopPage } from './pages/MetabolismWorkshopPage';
 import { CollaborationLabPage } from './pages/CollaborationLabPage';
 import { AbilityAtlasPage } from './pages/AbilityAtlasPage';
+import { IndustryAppPage } from './pages/IndustryAppPage';
+import { IndustryAppDetailPage } from './pages/IndustryAppDetailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -32,6 +34,8 @@ export default function App() {
             <Route path="/metabolism" element={<MetabolismWorkshopPage />} />
             <Route path="/collaboration" element={<CollaborationLabPage />} />
             <Route path="/ability-atlas" element={<AbilityAtlasPage />} />
+            <Route path="/industry" element={<IndustryAppPage />} />
+            <Route path="/industry/:id" element={<IndustryAppDetailPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
