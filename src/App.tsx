@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage';
 import { CategoryPage } from './pages/CategoryPage';
 import { DetailPage } from './pages/DetailPage';
 import { HabitatMapPage } from './pages/HabitatMapPage';
+import { LabPage } from './pages/LabPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/category/:category" element={<CategoryPage />} />
             <Route path="/microbe/:id" element={<DetailPage />} />
             <Route path="/habitat-map" element={<HabitatMapPage />} />
+            <Route path="/lab" element={<LabPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>
