@@ -21,6 +21,8 @@ import {
   ERA_LABELS,
 } from '../../shared/types';
 
+const SCROLL_POSITION_KEY = 'archive_scroll_position';
+
 export function ArchivePage() {
   const [events, setEvents] = useState(getAllDiscoveriesSorted());
   const [activeSection, setActiveSection] = useState<'timeline' | 'scientists'>(
@@ -29,7 +31,19 @@ export function ArchivePage() {
 
   useEffect(() => {
     setEvents(getAllDiscoveriesSorted());
+    const savedPosition = sessionStorage.getItem(SCROLL_POSITION_KEY);
+    if (savedPosition) {
+      const pos = parseInt(savedPosition, 10);
+      setTimeout(() => {
+        window.scrollTo({ top: pos, behavior: 'auto' });
+      }, 50);
+      sessionStorage.removeItem(SCROLL_POSITION_KEY);
+    }
   }, []);
+
+  const handleEventClick = () => {
+    sessionStorage.setItem(SCROLL_POSITION_KEY, String(window.scrollY));
+  };
 
   const categoryStats = (
     ['discovery', 'theory', 'technology', 'medical', 'genomics'] as const
@@ -197,7 +211,7 @@ export function ArchivePage() {
               </p>
             </div>
 
-            <Timeline events={events} />
+            <Timeline events={events} onEventClick={handleEventClick} />
           </div>
         )}
 

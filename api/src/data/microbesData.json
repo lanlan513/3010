@@ -286,5 +286,41 @@
     "discoveredYear": 1986,
     "size": "直径约0.8-2.0μm",
     "characteristics": ["超嗜热", "严格厌氧", "异养发酵", "含Pfu聚合酶"]
+  },
+  {
+    "id": 25,
+    "name": "炭疽杆菌",
+    "scientificName": "Bacillus anthracis",
+    "category": "bacteria",
+    "habitat": "土壤、动物尸体、草食动物体内",
+    "description": "炭疽杆菌是引起炭疽病的病原体，是人类历史上第一个被证明能引起疾病的细菌。它是革兰氏阳性杆状细菌，能够形成具有极强抵抗力的内生孢子，可在土壤中存活数十年。炭疽杆菌主要感染草食动物，人类通过接触感染动物或吸入孢子而感染。1876年罗伯特·科赫首次分离并证明了炭疽杆菌的致病性，确立了疾病的微生物理论。",
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=bacillus%20anthracis%20rod%20shaped%20bacteria%20with%20spores%20teal%20glow%20dark%20microscopic%20scientific%20pathogen&image_size=square_hd",
+    "discoveredYear": 1876,
+    "size": "长3-10μm，宽1-1.5μm",
+    "characteristics": ["革兰氏阳性", "产内生孢子", "致病菌", "竹节状排列"]
+  },
+  {
+    "id": 26,
+    "name": "狂犬病毒",
+    "scientificName": "Rabies virus",
+    "category": "virus",
+    "habitat": "哺乳动物神经系统、唾液腺",
+    "description": "狂犬病毒是引起狂犬病的病原体，属于弹状病毒科，病毒颗粒呈子弹状。它是一种嗜神经性病毒，主要通过受感染动物的咬伤传播，病毒从外周神经向中枢神经系统扩散，引起致命的脑炎。狂犬病一旦出现症状后死亡率几乎100%。1885年路易·巴斯德成功研制出狂犬病疫苗，这是人类历史上第一个成功的疫苗。",
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=rabies%20virus%20bullet%20shaped%20rhabdovirus%20red%20orange%20glow%20dark%20background%203d%20scientific%20medical&image_size=square_hd",
+    "discoveredYear": 1885,
+    "size": "长约180nm，直径约75nm",
+    "characteristics": ["弹状病毒", "嗜神经性", "人畜共患病", "致死率极高"]
+  },
+  {
+    "id": 27,
+    "name": "蕈状支原体",
+    "scientificName": "Mycoplasma mycoides",
+    "category": "bacteria",
+    "habitat": "反刍动物呼吸道、生殖道",
+    "description": "蕈状支原体是一种没有细胞壁的原核生物，属于柔膜菌纲，是已知最小的能独立生存的细胞生物之一。它的基因组非常小，仅约100万个碱基对，约含约1000个基因。2010年，克雷格·文特尔团队以蕈状支原体为基础，化学合成了其完整基因组，并成功移植到山羊支原体细胞中，创造出了世界上第一个由人工合成基因组控制的细胞——'辛西娅'（Synthia），这是合成生物学的里程碑。",
+    "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=mycoplasma%20mycoides%20mycoplasma%20bacteria%20pleomorphic%20no%20cell%20wall%20teal%20glow%20dark%20microscope%20synthetic%20biology&image_size=square_hd",
+    "discoveredYear": 1898,
+    "size": "直径约0.2-0.8μm",
+    "characteristics": ["无细胞壁", "基因组极小", "可独立生存", "合成生物学模式生物"]
   }
 ]

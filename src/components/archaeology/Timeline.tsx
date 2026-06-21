@@ -9,9 +9,10 @@ import {
 
 interface TimelineProps {
   events: DiscoveryEvent[];
+  onEventClick?: () => void;
 }
 
-export function Timeline({ events }: TimelineProps) {
+export function Timeline({ events, onEventClick }: TimelineProps) {
   const [selectedEra, setSelectedEra] = useState<DiscoveryEvent['era'] | 'all'>('all');
 
   const filteredEvents =
@@ -77,6 +78,7 @@ export function Timeline({ events }: TimelineProps) {
                 <div className={`md:w-1/2 ${isLeft ? 'md:pr-12 md:text-right' : 'md:pl-12 md:text-left'}`}>
                   <Link
                     to={`/archive/${event.id}`}
+                    onClick={onEventClick}
                     className="group block glass-card p-6 hover:border-glow-primary/40 transition-all duration-300 hover:shadow-glow"
                     style={{
                       '--hover-shadow-color': `${color}40`,

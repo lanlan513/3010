@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Calendar,
@@ -27,6 +27,7 @@ import { MicrobeCard } from '../components/MicrobeCard';
 
 export function ArchiveDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { microbes, fetchMicrobes } = useAppStore();
   const [discovery, setDiscovery] = useState<DiscoveryEvent | undefined>();
   const [relatedMicrobes, setRelatedMicrobes] = useState<Microbe[]>([]);
@@ -37,6 +38,10 @@ export function ArchiveDetailPage() {
       fetchMicrobes();
     }
   }, [microbes.length, fetchMicrobes]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' });
+  }, [id]);
 
   useEffect(() => {
     if (id) {
@@ -77,10 +82,10 @@ export function ArchiveDetailPage() {
     return (
       <div className="container mx-auto px-6 pt-32 text-center">
         <h1 className="font-display text-4xl text-glow-red mb-4">事件不存在</h1>
-        <Link to="/archive" className="btn-primary">
+        <button onClick={() => navigate('/archive')} className="btn-primary">
           <ArrowLeft className="w-4 h-4" />
           返回考古馆
-        </Link>
+        </button>
       </div>
     );
   }
@@ -105,13 +110,13 @@ export function ArchiveDetailPage() {
 
       <div className="container mx-auto px-6 relative z-10">
         <div className="animate-fade-in-up stagger-1 opacity-0 mb-8">
-          <Link
-            to="/archive"
+          <button
+            onClick={() => navigate(-1)}
             className="inline-flex items-center gap-2 font-mono text-sm text-text-muted hover:text-glow-primary transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             返回考古馆
-          </Link>
+          </button>
         </div>
 
         <div className="max-w-4xl mx-auto">
