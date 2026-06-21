@@ -158,3 +158,53 @@ export interface RelationPath {
   steps: PathStep[];
   totalStrength: number;
 }
+
+export interface Scientist {
+  id: string;
+  name: string;
+  nationality: string;
+  birthYear: number;
+  deathYear?: number;
+  portraitUrl?: string;
+  biography: string;
+  achievements: string[];
+}
+
+export interface DiscoveryEvent {
+  id: string;
+  year: number;
+  yearEnd?: number;
+  title: string;
+  summary: string;
+  description: string;
+  category: 'discovery' | 'theory' | 'technology' | 'medical' | 'genomics';
+  scientists: string[];
+  relatedMicrobes: number[];
+  keyFindings: string[];
+  impact: string;
+  imageUrl?: string;
+  era: 'ancient' | 'renaissance' | 'modern' | 'contemporary';
+}
+
+export const DISCOVERY_CATEGORY_LABELS: Record<DiscoveryEvent['category'], string> = {
+  discovery: '重大发现',
+  theory: '理论建立',
+  technology: '技术突破',
+  medical: '医学应用',
+  genomics: '基因组学',
+};
+
+export const DISCOVERY_CATEGORY_COLORS: Record<DiscoveryEvent['category'], string> = {
+  discovery: '#00ffc8',
+  theory: '#9b59b6',
+  technology: '#f1c40f',
+  medical: '#e74c3c',
+  genomics: '#3498db',
+};
+
+export const ERA_LABELS: Record<DiscoveryEvent['era'], string> = {
+  ancient: '古代',
+  renaissance: '启蒙时代',
+  modern: '近代',
+  contemporary: '当代',
+};

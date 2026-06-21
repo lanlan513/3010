@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Dna, Search, Menu, X, MapPin, Microscope } from 'lucide-react';
+import { Home, Dna, Search, Menu, X, MapPin, Microscope, BookOpen } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export function Navbar() {
@@ -16,6 +16,7 @@ export function Navbar() {
   const navItems = [
     { to: '/', label: '首页大厅', icon: Home },
     { to: '/habitat-map', label: '生存地图', icon: MapPin },
+    { to: '/archive', label: '档案考古馆', icon: BookOpen },
     { to: '/lab', label: '模拟实验室', icon: Microscope },
     { to: '/category/bacteria', label: '细菌', icon: Dna },
     { to: '/category/fungi', label: '真菌', icon: Dna },
