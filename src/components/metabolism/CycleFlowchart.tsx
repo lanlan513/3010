@@ -1,356 +1,309 @@
-import { useState, useMemo } from 'react';
-import type { BiogeochemicalCycleData, CycleFlowEdge, MetabolicPathwayStep, MetabolismType } from '../../../shared/types';
-import { METABOLISM_TYPE_LABELS, CYCLE_COLORS } from '../../../shared/types';
+import { useMemo, useState } from 'react';
+import { ChevronRight, Zap, ArrowRight } from 'lucide-react';
+import type {
+  BiogeochemicalCycleData,
+  MetabolicPathwayStep,
+} from '../../../shared/types';
+import {
+  CYCLE_COLORS,
+  CYCLE_LABELS,
+  METABOLISM_TYPE_LABELS,
+  CATEGORY_COLORS,
+} from '../../../shared/types';
+import { useAppStore } from '../../store/useAppStore';
 
 interface CycleFlowchartProps {
   data: BiogeochemicalCycleData;
-  onStepClick?: (step: MetabolicPathwayStep) => void;
-  onEdgeClick?: (edge: CycleFlowEdge) => void;
-  highlightMicrobeId?: number | null;
-  highlightStepId?: string | null;
-  selectedEdge?: CycleFlowEdge | null;
 }
 
-const METABOLISM_COLORS: Record<MetabolismType, string> = {
-  aerobic_respiration: '#00ffc8',
-  anaerobic_respiration: '#9b59b6',
-  fermentation: '#ff7b29',
-  photosynthesis: '#2ecc71',
-  chemosynthesis: '#1abc9c',
-  nitrogen_fixation: '#3498db',
-  nitrification: '#e67e22',
-  denitrification: '#e74c3c',
-  sulfate_reduction: '#f1c40f',
-  sulfur_oxidation: '#d4ac0d',
-  methanogenesis: '#8e44ad',
-  methanotrophy: '#27ae60',
-};
+export function CycleFlowchart({ data }: CycleFlowchartProps) {
+  const { microbes } = useAppStore();
+  const [selectedStep, setSelectedStep] = useState<MetabolicPathwayStep | null>(null);
+  const color = CYCLE_COLORS[data.cycle];
 
-interface NodePosition {
-  x: number;
-  y: number;
-}
+  const nodePositions = useMemo(() => {
+    const positions: Record<string, { x: number; y: number }> = {};
+    const steps = data.steps;
+    const stepCount = steps.length;
+    const centerX = 400;
+    const centerY = 220;
+    const radius = 160;
 
-function computeNodePositions(steps: MetabolicPathwayStep[], edges: CycleFlowEdge[]): Record<string, NodePosition> {
-  const positions: Record<string, NodePosition> = {};
-  const ids = steps.map((s) => s.id);
-  const n = ids.length;
+    steps.forEach((step, idx) => {
+      const angle = (idx / stepCount) * Math.PI * 2 - Math.PI / 2;
+      positions[step.id] = {
+        x: centerX + radius * Math.cos(angle),
+        y: centerY + radius * Math.sin(angle),
+      };
+    });
 
-  if (n === 0) return positions;
+    const reservoirNodes = new Set<string>();
+    data.edges.forEach((e) => {
+      if (!data.steps.find((s) => s.id === e.from)) reservoirNodes.add(e.from);
+      if (!data.steps.find((s) => s.id === e.to)) reservoirNodes.add(e.to);
+    });
 
-  const centerX = 500;
-  const centerY = 320;
-  const radiusX = 320;
-  const radiusY = 220;
+    let resIdx = 0;
+    const resCount = reservoirNodes.size;
+    const resRadius = 250;
+    reservoirNodes.forEach((name) => {
+      const angle = (resIdx / resCount) * Math.PI * 2 - Math.PI / 4;
+      positions[name] = {
+        x: centerX + resRadius * Math.cos(angle),
+        y: centerY + resRadius * Math.sin(angle),
+      };
+      resIdx++;
+    });
 
-  const inDegree: Record<string, number> = {};
-  const outDegree: Record<string, number> = {};
-  ids.forEach((id) => {
-    inDegree[id] = 0;
-    outDegree[id] = 0;
-  });
-  edges.forEach((e) => {
-    outDegree[e.from] = (outDegree[e.from] || 0) + 1;
-    inDegree[e.to] = (inDegree[e.to] || 0) + 1;
-  });
-
-  const sortedIds = [...ids].sort((a, b) => {
-    const aScore = inDegree[a] + outDegree[a];
-    const bScore = inDegree[b] + outDegree[b];
-    return bScore - aScore;
-  });
-
-  const hubId = sortedIds[0];
-  const hubIdx = ids.indexOf(hubId);
-
-  ids.forEach((id, idx) => {
-    let adjustedIdx = idx;
-    if (hubIdx === 0) {
-      adjustedIdx = idx;
-    } else {
-      adjustedIdx = (idx - hubIdx + n) % n;
-    }
-    const angle = (adjustedIdx / n) * Math.PI * 2 - Math.PI / 2;
-    positions[id] = {
-      x: centerX + radiusX * Math.cos(angle),
-      y: centerY + radiusY * Math.sin(angle),
-    };
-  });
-
-  return positions;
-}
-
-export function CycleFlowchart({ data, onStepClick, onEdgeClick, highlightMicrobeId, highlightStepId, selectedEdge }: CycleFlowchartProps) {
-  const [hoveredStep, setHoveredStep] = useState<string | null>(null);
-  const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
-  const [selectedStep, setSelectedStep] = useState<string | null>(null);
-
-  const positions = useMemo(() => computeNodePositions(data.steps, data.edges), [data.steps, data.edges]);
-
-  const cycleColor = CYCLE_COLORS[data.cycle];
-
-  const isStepHighlighted = (stepId: string) => {
-    if (highlightStepId && highlightStepId === stepId) return true;
-    if (!highlightMicrobeId) return false;
-    const step = data.steps.find((s) => s.id === stepId);
-    return step ? step.microbeIds.includes(highlightMicrobeId) : false;
-  };
-
-  const isEdgeHighlighted = (edge: CycleFlowEdge) => {
-    if (selectedEdge && selectedEdge.from === edge.from && selectedEdge.to === edge.to) return true;
-    if (!highlightMicrobeId) return false;
-    return edge.microbeIds.includes(highlightMicrobeId);
-  };
-
-  const getEdgePath = (from: NodePosition, to: NodePosition) => {
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const curvature = Math.min(0.3, 60 / dist);
-
-    const midX = (from.x + to.x) / 2;
-    const midY = (from.y + to.y) / 2;
-    const perpX = -dy * curvature;
-    const perpY = dx * curvature;
-
-    const cx = midX + perpX;
-    const cy = midY + perpY;
-
-    return { path: `M ${from.x} ${from.y} Q ${cx} ${cy} ${to.x} ${to.y}`, midX: cx, midY: cy };
-  };
-
-  const handleStepClick = (step: MetabolicPathwayStep) => {
-    setSelectedStep(selectedStep === step.id ? null : step.id);
-    onStepClick?.(step);
-  };
-
-  const nodeWidth = 110;
-  const nodeHeight = 50;
-
-  const selectedStepData = selectedStep ? data.steps.find((s) => s.id === selectedStep) : null;
+    return positions;
+  }, [data]);
 
   return (
-    <div className="relative">
-      <svg viewBox="0 0 1000 640" className="w-full h-auto" style={{ minHeight: 400 }}>
-        <defs>
-          <marker
-            id={`arrow-${data.cycle}`}
-            markerWidth="10"
-            markerHeight="7"
-            refX="9"
-            refY="3.5"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <polygon points="0 0, 10 3.5, 0 7" fill={cycleColor} fillOpacity="0.7" />
-          </marker>
-          <marker
-            id={`arrow-highlight-${data.cycle}`}
-            markerWidth="12"
-            markerHeight="8"
-            refX="10"
-            refY="4"
-            orient="auto"
-            markerUnits="strokeWidth"
-          >
-            <polygon points="0 0, 12 4, 0 8" fill={cycleColor} />
-          </marker>
-          <filter id={`glow-${data.cycle}`}>
-            <feGaussianBlur stdDeviation="4" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-          <filter id={`glow-strong-${data.cycle}`}>
-            <feGaussianBlur stdDeviation="8" result="coloredBlur" />
-            <feMerge>
-              <feMergeNode in="coloredBlur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-
-        {data.edges.map((edge, idx) => {
-          const from = positions[edge.from];
-          const to = positions[edge.to];
-          if (!from || !to) return null;
-
-          const highlighted = isEdgeHighlighted(edge);
-          const isHovered = hoveredEdge === `${edge.from}-${edge.to}-${idx}`;
-          const metColor = METABOLISM_COLORS[edge.metabolismType] || cycleColor;
-
-          const dx = to.x - from.x;
-          const dy = to.y - from.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          const offsetX = (dx / dist) * (nodeWidth / 2 + 5);
-          const offsetY = (dy / dist) * (nodeHeight / 2 + 5);
-          const startX = from.x + offsetX;
-          const startY = from.y + offsetY;
-          const endX = to.x - offsetX;
-          const endY = to.y - offsetY;
-
-          const { path: clippedPath, midX: labelX, midY: labelY } = getEdgePath(
-            { x: startX, y: startY },
-            { x: endX, y: endY }
-          );
-
-          return (
-            <g
-              key={`edge-${idx}`}
-              className="cursor-pointer"
-              onMouseEnter={() => setHoveredEdge(`${edge.from}-${edge.to}-${idx}`)}
-              onMouseLeave={() => setHoveredEdge(null)}
-              onClick={() => onEdgeClick?.(edge)}
+    <div className="space-y-6">
+      <div className="relative">
+        <svg viewBox="0 0 800 440" className="w-full h-[440px]">
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <marker
+              id={`arrow-${data.cycle}`}
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
             >
-              <path
-                d={clippedPath}
-                fill="none"
-                stroke={highlighted || isHovered ? metColor : cycleColor}
-                strokeWidth={highlighted || isHovered ? 3 : 1.5}
-                strokeOpacity={highlighted || isHovered ? 1 : 0.35}
-                markerEnd={highlighted || isHovered ? `url(#arrow-highlight-${data.cycle})` : `url(#arrow-${data.cycle})`}
-                filter={highlighted ? `url(#glow-${data.cycle})` : undefined}
-              />
-              {(isHovered || highlighted) && (
+              <path d="M 0 0 L 10 5 L 0 10 z" fill={color} />
+            </marker>
+          </defs>
+
+          {data.edges.map((edge, idx) => {
+            const from = nodePositions[edge.from];
+            const to = nodePositions[edge.to];
+            if (!from || !to) return null;
+            const dx = to.x - from.x;
+            const dy = to.y - from.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            const startX = from.x + (dx / dist) * 35;
+            const startY = from.y + (dy / dist) * 35;
+            const endX = to.x - (dx / dist) * 35;
+            const endY = to.y - (dy / dist) * 35;
+
+            return (
+              <g key={idx}>
+                <line
+                  x1={startX}
+                  y1={startY}
+                  x2={endX}
+                  y2={endY}
+                  stroke={color}
+                  strokeWidth="2"
+                  strokeOpacity="0.5"
+                  markerEnd={`url(#arrow-${data.cycle})`}
+                />
                 <text
-                  x={labelX}
-                  y={labelY - 8}
+                  x={(startX + endX) / 2}
+                  y={(startY + endY) / 2 - 8}
                   textAnchor="middle"
-                  fill={metColor}
-                  fontSize="11"
-                  fontFamily="JetBrains Mono, monospace"
-                  className="pointer-events-none"
+                  fill={color}
+                  fontSize="10"
+                  fontFamily="monospace"
                 >
                   {edge.label}
                 </text>
-              )}
-            </g>
-          );
-        })}
+              </g>
+            );
+          })}
 
-        {data.steps.map((step) => {
-          const pos = positions[step.id];
-          if (!pos) return null;
-
-          const highlighted = isStepHighlighted(step.id);
-          const isHovered = hoveredStep === step.id;
-          const isSelected = selectedStep === step.id || highlightStepId === step.id;
-
-          return (
-            <g
-              key={step.id}
-              className="cursor-pointer"
-              onMouseEnter={() => setHoveredStep(step.id)}
-              onMouseLeave={() => setHoveredStep(null)}
-              onClick={() => handleStepClick(step)}
-            >
-              {(highlighted || isHovered || isSelected) && (
-                <rect
-                  x={pos.x - nodeWidth / 2 - 4}
-                  y={pos.y - nodeHeight / 2 - 4}
-                  width={nodeWidth + 8}
-                  height={nodeHeight + 8}
-                  rx={16}
-                  fill={cycleColor}
-                  fillOpacity={0.1}
-                  filter={`url(#glow-strong-${data.cycle})`}
-                />
-              )}
-              <rect
-                x={pos.x - nodeWidth / 2}
-                y={pos.y - nodeHeight / 2}
-                width={nodeWidth}
-                height={nodeHeight}
-                rx={12}
-                fill={highlighted || isSelected ? cycleColor : '#1a2a28'}
-                fillOpacity={highlighted || isSelected ? 0.25 : 0.9}
-                stroke={cycleColor}
-                strokeWidth={highlighted || isHovered || isSelected ? 2 : 1}
-                strokeOpacity={highlighted || isHovered || isSelected ? 0.8 : 0.3}
-              />
-              <text
-                x={pos.x}
-                y={pos.y + 5}
-                textAnchor="middle"
-                fill={highlighted || isHovered || isSelected ? cycleColor : '#e8f5f2'}
-                fontSize="14"
-                fontWeight="bold"
-                fontFamily="JetBrains Mono, monospace"
+          {data.steps.map((step) => {
+            const pos = nodePositions[step.id];
+            if (!pos) return null;
+            const isSelected = selectedStep?.id === step.id;
+            return (
+              <g
+                key={step.id}
+                onClick={() => setSelectedStep(isSelected ? null : step)}
+                className="cursor-pointer"
               >
-                {step.label}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
+                <circle
+                  cx={pos.x}
+                  cy={pos.y}
+                  r="32"
+                  fill={color + '15'}
+                  stroke={color}
+                  strokeWidth={isSelected ? '3' : '1.5'}
+                  strokeOpacity={isSelected ? '1' : '0.6'}
+                  filter={isSelected ? 'url(#glow)' : undefined}
+                />
+                <Zap
+                  x={pos.x - 8}
+                  y={pos.y - 8}
+                  width="16"
+                  height="16"
+                  stroke={color}
+                  fill="none"
+                  strokeWidth="1.5"
+                />
+                <text
+                  x={pos.x}
+                  y={pos.y + 50}
+                  textAnchor="middle"
+                  fill="#dfebf0"
+                  fontSize="11"
+                  fontFamily="monospace"
+                >
+                  {step.label}
+                </text>
+              </g>
+            );
+          })}
 
-      {(selectedStepData || (highlightStepId && data.steps.find((s) => s.id === highlightStepId))) && (() => {
-        const currentStep = selectedStepData || data.steps.find((s) => s.id === highlightStepId);
-        if (!currentStep) return null;
-        return (
-          <div className="glass-card p-5 mt-4 animate-fade-in-up">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h4 className="font-display text-xl text-text-light">
-                  {currentStep.label}
-                </h4>
+          {Object.entries(nodePositions)
+            .filter(([name]) => !data.steps.find((s) => s.id === name))
+            .map(([name, pos]) => (
+              <g key={name}>
+                <rect
+                  x={pos.x - 45}
+                  y={pos.y - 16}
+                  width="90"
+                  height="32"
+                  rx="16"
+                  fill="#0d1f1c"
+                  stroke={color}
+                  strokeOpacity="0.3"
+                  strokeWidth="1"
+                />
+                <text
+                  x={pos.x}
+                  y={pos.y + 4}
+                  textAnchor="middle"
+                  fill="#8fb5af"
+                  fontSize="10"
+                  fontFamily="monospace"
+                >
+                  {name}
+                </text>
+              </g>
+            ))}
+        </svg>
+      </div>
+
+      {selectedStep && (
+        <div className="glass-card p-5 animate-fade-in-up">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: color }}
+                />
                 <span
-                  className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-mono border"
+                  className="font-mono text-[10px] px-2 py-0.5 rounded-full border"
                   style={{
-                    color: cycleColor,
-                    borderColor: cycleColor + '66',
-                    backgroundColor: cycleColor + '15',
+                    color,
+                    borderColor: color + '44',
+                    backgroundColor: color + '10',
                   }}
                 >
-                  {METABOLISM_TYPE_LABELS[currentStep.metabolismType]}
+                  {METABOLISM_TYPE_LABELS[selectedStep.metabolismType]}
                 </span>
               </div>
-              <button
-                onClick={() => setSelectedStep(null)}
-                className="text-text-muted hover:text-text-light transition-colors text-sm"
-              >
-                ✕
-              </button>
+              <h4 className="font-display text-xl text-text-light">
+                {selectedStep.label}
+              </h4>
             </div>
-            <p className="font-mono text-sm text-text-muted leading-relaxed mb-3">
-              {currentStep.description}
-            </p>
-            {currentStep.reactants.length > 0 && (
-              <div className="mb-2">
-                <span className="font-mono text-[10px] text-text-muted/60">反应物：</span>
-                <span className="font-mono text-sm text-glow-primary ml-2">
-                  {currentStep.reactants.join(' + ')}
-                </span>
-              </div>
-            )}
-            {currentStep.products.length > 0 && (
-              <div className="mb-2">
-                <span className="font-mono text-[10px] text-text-muted/60">产物：</span>
-                <span className="font-mono text-sm text-glow-orange ml-2">
-                  {currentStep.products.join(' + ')}
-                </span>
-              </div>
-            )}
-            {currentStep.energyOutput && (
-              <div className="mb-2">
-                <span className="font-mono text-[10px] text-text-muted/60">能量：</span>
-                <span className="font-mono text-sm text-glow-gold ml-2">
-                  {currentStep.energyOutput}
-                </span>
-              </div>
-            )}
-            {currentStep.microbeIds.length > 0 && (
-              <div>
-                <span className="font-mono text-[10px] text-text-muted/60">参与微生物 ID：</span>
-                <span className="font-mono text-sm text-text-light ml-2">
-                  {currentStep.microbeIds.join(', ')}
-                </span>
-              </div>
-            )}
+            <div
+              className="font-mono text-[10px] px-2 py-1 rounded bg-glow-primary/10 text-glow-primary border border-glow-primary/20"
+            >
+              {selectedStep.energyOutput}
+            </div>
           </div>
-        );
-      })()}
+
+          <p className="font-mono text-sm text-text-muted/70 leading-relaxed mb-4">
+            {selectedStep.description}
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-4 mb-4">
+            <div className="glass-card p-3">
+              <p className="font-mono text-[10px] text-text-muted/50 mb-2">
+                底物 (反应物)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedStep.reactants.map((r, i) => (
+                  <span
+                    key={i}
+                    className="font-mono text-[10px] px-2 py-0.5 rounded bg-background-card/80 text-text-light border border-white/10"
+                  >
+                    {r}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="glass-card p-3">
+              <p className="font-mono text-[10px] text-text-muted/50 mb-2">
+                产物
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {selectedStep.products.map((p, i) => (
+                  <span
+                    key={i}
+                    className="font-mono text-[10px] px-2 py-0.5 rounded"
+                    style={{
+                      backgroundColor: color + '15',
+                      color: color,
+                      border: `1px solid ${color}33`,
+                    }}
+                  >
+                    {p}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="font-mono text-[10px] text-text-muted/50 mb-2">
+              参与微生物 ({selectedStep.microbeIds.length})
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {selectedStep.microbeIds.map((id) => {
+                const microbe = microbes.find((m) => m.id === id);
+                if (!microbe) return null;
+                return (
+                  <div
+                    key={id}
+                    className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-background-card/50 border border-white/5"
+                  >
+                    <div
+                      className="w-1.5 h-1.5 rounded-full"
+                      style={{
+                        backgroundColor: CATEGORY_COLORS[microbe.category],
+                      }}
+                    />
+                    <span className="font-mono text-[10px] text-text-light">
+                      {microbe.name}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!selectedStep && (
+        <div className="text-center py-4">
+          <p className="font-mono text-xs text-text-muted/50">
+            点击循环节点查看详细代谢途径信息
+          </p>
+        </div>
+      )}
     </div>
   );
 }

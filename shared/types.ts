@@ -279,3 +279,57 @@ export interface MicrobeMetabolismProfile {
     efficiency: number;
   }[];
 }
+
+export interface CommunityMicrobe {
+  microbeId: number;
+  initialPopulation: number;
+  role: string;
+}
+
+export interface CommunityInteraction {
+  sourceId: number;
+  targetId: number;
+  type: 'cooperation' | 'competition' | 'parasitism' | 'neutral';
+  strength: number;
+  description: string;
+}
+
+export interface CommunityTimePoint {
+  hour: number;
+  populations: Record<number, number>;
+  interactions: CommunityInteraction[];
+}
+
+export interface StabilityReport {
+  overallScore: number;
+  diversityIndex: number;
+  cooperationRatio: number;
+  competitionRatio: number;
+  dominantSpecies: number | null;
+  equilibriumReached: boolean;
+  equilibriumHour: number | null;
+  riskFactors: string[];
+  strengths: string[];
+  timeline: CommunityTimePoint[];
+}
+
+export interface CollaborationExperimentConfig {
+  id: string;
+  name: string;
+  createdAt: number;
+  microbes: CommunityMicrobe[];
+  temperature: number;
+  humidity: number;
+  ph: number;
+  nutrients: number;
+  duration: number;
+}
+
+export interface CollaborationExperimentRecord {
+  id: string;
+  name: string;
+  createdAt: number;
+  config: CollaborationExperimentConfig;
+  stabilityReport: StabilityReport;
+  shareCode?: string;
+}

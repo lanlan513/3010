@@ -1,7 +1,11 @@
-import microbesData from '../data/microbesData.json' with { type: 'json' };
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import type { Microbe, MicrobeCategory, Stats } from '../../../shared/types.js';
 
-const microbes = microbesData as Microbe[];
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const microbes = JSON.parse(readFileSync(join(__dirname, '../data/microbesData.json'), 'utf-8')) as Microbe[];
 
 export class MicrobeService {
   static getAll(params?: {

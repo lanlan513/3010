@@ -1,254 +1,267 @@
 import { useState, useMemo } from 'react';
-import { Search, X, Zap, ArrowRight } from 'lucide-react';
-import type { BiogeochemicalCycleData, MetabolismType, BiogeochemicalCycle } from '../../../shared/types';
-import { METABOLISM_TYPE_LABELS, CYCLE_LABELS, CYCLE_COLORS } from '../../../shared/types';
-import { microbeMetabolismProfiles, cycleDataMap } from '../../data/metabolismData';
+import { Search, Filter, ArrowRight } from 'lucide-react';
+import { useAppStore } from '../../store/useAppStore';
+import { biogeochemicalCyclesData, microbeMetabolismProfiles } from '../../data/metabolismData';
+import type {
+  BiogeochemicalCycle,
+  MetabolismType,
+  MetabolicPathwayStep,
+} from '../../../shared/types';
+import {
+  CATEGORY_COLORS,
+  CYCLE_LABELS,
+  CYCLE_COLORS,
+  METABOLISM_TYPE_LABELS,
+} from '../../../shared/types';
 
-interface PathwaySearchProps {
-  cycleData: BiogeochemicalCycleData;
-  onMicrobeSelect?: (id: number, cycle: BiogeochemicalCycle) => void;
-  onEdgeSelect?: (from: string, to: string, cycle: BiogeochemicalCycle) => void;
-  onStepSelect?: (stepId: string, cycle: BiogeochemicalCycle) => void;
-  onCycleChange?: (cycle: BiogeochemicalCycle) => void;
-}
-interface SearchResult {
-  type: 'microbe' | 'pathway' | 'step';
-  title: string;
-  subtitle: string;
-  cycle: BiogeochemicalCycle;
-  metabolismType: MetabolismType;
-  microbeId?: number;
-  stepId?: string;
-  edgeFrom?: string;
-  edgeTo?: string;
-}
-
-export function PathwaySearch({ cycleData, onMicrobeSelect, onEdgeSelect, onStepSelect, onCycleChange }: PathwaySearchProps) {
-  void onCycleChange;
+export function PathwaySearch() {
+  const { microbes } = useAppStore();
   const [query, setQuery] = useState('');
-  const [isFocused, setIsFocused] = useState(false);
+  const [filterCycle, setFilterCycle] = useState<BiogeochemicalCycle | 'all'>('all');
+  const [filterType, setFilterType] = useState<MetabolismType | 'all'>('all');
+  const [selectedStep, setSelectedStep] = useState<MetabolicPathwayStep | null>(null);
 
-  const allCycles = useMemo(() => Object.values(cycleDataMap), []);
+  const allSteps = useMemo(() => {
+    return biogeochemicalCyclesData.flatMap((cycle) =>
+      cycle.steps.map((step) => ({ ...step, cycle: cycle.cycle }))
+    );
+  }, []);
 
-  const results = useMemo<SearchResult[]>(() => {
-    if (!query.trim()) return [];
-
-    const q = query.toLowerCase().trim();
-    const searchResults: SearchResult[] = [];
-
-    allCycles.forEach((cd) => {
-      cd.steps.forEach((step) => {
-        const matchLabel = step.label.toLowerCase().includes(q);
-        const matchDesc = step.description.toLowerCase().includes(q);
-        const matchReactant = step.reactants.some((r) => r.toLowerCase().includes(q));
-        const matchProduct = step.products.some((r) => r.toLowerCase().includes(q));
-        const matchMetabolism = METABOLISM_TYPE_LABELS[step.metabolismType].toLowerCase().includes(q);
-
-        if (matchLabel || matchDesc || matchReactant || matchProduct || matchMetabolism) {
-          searchResults.push({
-            type: 'step',
-            title: step.label,
-            subtitle: step.description.slice(0, 60) + (step.description.length > 60 ? '...' : ''),
-            cycle: cd.cycle,
-            metabolismType: step.metabolismType,
-            stepId: step.id,
-          });
-        }
-      });
-
-      cd.edges.forEach((edge) => {
-        const matchLabel = edge.label.toLowerCase().includes(q);
-        const matchMetabolism = METABOLISM_TYPE_LABELS[edge.metabolismType].toLowerCase().includes(q);
-        const hasMatchingMicrobe = edge.microbeIds.length > 0 && edge.microbeIds.some((mid) => {
-          const profile = microbeMetabolismProfiles.find((p) => p.microbeId === mid);
-          return profile && profile.microbeName.toLowerCase().includes(q);
-        });
-
-        if (matchLabel || matchMetabolism || hasMatchingMicrobe) {
-          searchResults.push({
-            type: 'pathway',
-            title: edge.label,
-            subtitle: `${METABOLISM_TYPE_LABELS[edge.metabolismType]}`,
-            cycle: cd.cycle,
-            metabolismType: edge.metabolismType,
-            edgeFrom: edge.from,
-            edgeTo: edge.to,
-            microbeId: edge.microbeIds[0],
-          });
-        }
-      });
-
-      microbeMetabolismProfiles.forEach((profile) => {
-        const matchName = profile.microbeName.toLowerCase().includes(q);
-        const hasPathwayInCycle = profile.pathways.some((p) => p.cycle === cd.cycle);
-        const matchPathway = profile.pathways.some(
-          (p) => p.role.toLowerCase().includes(q) || METABOLISM_TYPE_LABELS[p.metabolismType].toLowerCase().includes(q)
-        );
-
-        if ((matchName || matchPathway) && hasPathwayInCycle) {
-          searchResults.push({
-            type: 'microbe',
-            title: profile.microbeName,
-            subtitle: profile.pathways
-              .filter((p) => p.cycle === cd.cycle)
-              .map((p) => p.role)
-              .join(' / '),
-            cycle: cd.cycle,
-            metabolismType: profile.pathways[0].metabolismType,
-            microbeId: profile.microbeId,
-          });
-        }
-      });
-    });
-
-    const seen = new Set<string>();
-    return searchResults.filter((r) => {
-      const key = `${r.type}-${r.title}-${r.cycle}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).slice(0, 15);
-  }, [query, allCycles]);
-
-  const showResults = isFocused && query.trim().length > 0;
-
-  const typeIcons: Record<string, string> = {
-    microbe: '🦠',
-    pathway: '🔄',
-    step: '⚛️',
-  };
-
-  const handleResultClick = (result: SearchResult) => {
-    if (result.type === 'microbe' && result.microbeId) {
-      onMicrobeSelect?.(result.microbeId, result.cycle);
-    } else if (result.type === 'pathway' && result.edgeFrom && result.edgeTo) {
-      onEdgeSelect?.(result.edgeFrom, result.edgeTo, result.cycle);
-    } else if (result.type === 'step' && result.stepId) {
-      onStepSelect?.(result.stepId, result.cycle);
+  const filteredSteps = useMemo(() => {
+    let result = allSteps;
+    if (filterCycle !== 'all') {
+      result = result.filter((s) => s.cycle === filterCycle);
     }
-    setQuery('');
-    setIsFocused(false);
-  };
+    if (filterType !== 'all') {
+      result = result.filter((s) => s.metabolismType === filterType);
+    }
+    if (query.trim()) {
+      const q = query.toLowerCase();
+      result = result.filter(
+        (s) =>
+          s.label.toLowerCase().includes(q) ||
+          s.description.toLowerCase().includes(q) ||
+          s.reactants.some((r) => r.toLowerCase().includes(q)) ||
+          s.products.some((p) => p.toLowerCase().includes(q))
+      );
+    }
+    return result;
+  }, [allSteps, filterCycle, filterType, query]);
+
+  const allTypes = useMemo(() => {
+    const types = new Set<MetabolismType>();
+    allSteps.forEach((s) => types.add(s.metabolismType));
+    return [...types];
+  }, [allSteps]);
 
   return (
-    <div className="relative">
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted/60" />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-          placeholder="搜索代谢路径、微生物、化学物质（跨所有循环）..."
-          className="w-full pl-11 pr-10 py-3 rounded-xl bg-background-card/80 border border-glow-primary/20
-                     text-text-light font-mono text-sm focus:outline-none focus:border-glow-primary/60
-                     transition-colors placeholder:text-text-muted/40"
-        />
-        {query && (
-          <button
-            onClick={() => setQuery('')}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-light transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        )}
+    <div className="space-y-5">
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Search className="w-5 h-5 text-glow-primary" />
+          <h3 className="font-display text-xl text-text-light">代谢途径搜索</h3>
+        </div>
+
+        <div className="relative mb-4">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted/50" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索途径、底物、产物名称..."
+            className="w-full pl-10 pr-4 py-3 rounded-xl bg-background-card/80 border border-glow-primary/20 text-text-light font-mono text-sm focus:outline-none focus:border-glow-primary/60 transition-colors"
+          />
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Filter className="w-3.5 h-3.5 text-text-muted/50" />
+              <span className="font-mono text-[10px] text-text-muted/50">
+                生物地球化学循环
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setFilterCycle('all')}
+                className={`font-mono text-[10px] px-2.5 py-1 rounded-full border transition-all ${
+                  filterCycle === 'all'
+                    ? 'bg-glow-primary/15 text-glow-primary border-glow-primary/40'
+                    : 'bg-background-card/50 text-text-muted/70 border-white/5 hover:border-glow-primary/20 hover:text-text-light'
+                }`}
+              >
+                全部
+              </button>
+              {(['carbon', 'nitrogen', 'sulfur'] as const).map((cycle) => (
+                <button
+                  key={cycle}
+                  onClick={() => setFilterCycle(cycle)}
+                  className={`font-mono text-[10px] px-2.5 py-1 rounded-full border transition-all`}
+                  style={
+                    filterCycle === cycle
+                      ? {
+                          backgroundColor: CYCLE_COLORS[cycle] + '15',
+                          color: CYCLE_COLORS[cycle],
+                          borderColor: CYCLE_COLORS[cycle] + '40',
+                        }
+                      : {
+                          backgroundColor: '#0d1f1c50',
+                          color: '#8fb5afaa',
+                          borderColor: '#ffffff0d',
+                        }
+                  }
+                >
+                  {CYCLE_LABELS[cycle]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-1.5 mb-2">
+              <Filter className="w-3.5 h-3.5 text-text-muted/50" />
+              <span className="font-mono text-[10px] text-text-muted/50">代谢类型</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                onClick={() => setFilterType('all')}
+                className={`font-mono text-[10px] px-2.5 py-1 rounded-full border transition-all ${
+                  filterType === 'all'
+                    ? 'bg-glow-primary/15 text-glow-primary border-glow-primary/40'
+                    : 'bg-background-card/50 text-text-muted/70 border-white/5 hover:border-glow-primary/20 hover:text-text-light'
+                }`}
+              >
+                全部
+              </button>
+              {allTypes.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={`font-mono text-[10px] px-2.5 py-1 rounded-full border transition-all ${
+                    filterType === type
+                      ? 'bg-glow-primary/15 text-glow-primary border-glow-primary/40'
+                      : 'bg-background-card/50 text-text-muted/70 border-white/5 hover:border-glow-primary/20 hover:text-text-light'
+                  }`}
+                >
+                  {METABOLISM_TYPE_LABELS[type]}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {showResults && (
-        <div className="absolute top-full left-0 right-0 mt-2 glass-card p-2 max-h-[420px] overflow-y-auto z-20 animate-fade-in-up">
-          {results.length === 0 ? (
-            <div className="text-center py-6">
-              <p className="font-mono text-sm text-text-muted/60">未找到匹配的代谢路径</p>
-              <p className="font-mono text-[10px] text-text-muted/40 mt-1">
-                试试搜索&quot;固氮&quot;、&quot;发酵&quot;、&quot;CO₂&quot;、&quot;甲烷&quot;等关键词
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {results.map((result, idx) => {
-                const cycleColor = CYCLE_COLORS[result.cycle];
-                const isCurrentCycle = result.cycle === cycleData.cycle;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleResultClick(result)}
-                    className="w-full text-left px-4 py-3 rounded-lg hover:bg-glow-primary/5 transition-colors group"
-                  >
-                    <div className="flex items-start gap-3">
-                      <span className="text-base mt-0.5">{typeIcons[result.type]}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-sm text-text-light group-hover:text-glow-primary transition-colors truncate">
-                            {result.title}
-                          </span>
+      <div className="space-y-2">
+        {filteredSteps.length === 0 ? (
+          <div className="glass-card p-8 text-center">
+            <p className="font-mono text-sm text-text-muted/50">未找到匹配的代谢途径</p>
+          </div>
+        ) : (
+          filteredSteps.map((step) => {
+            const color = CYCLE_COLORS[step.cycle];
+            const isSelected = selectedStep?.id === step.id;
+            return (
+              <div
+                key={step.id}
+                className={`glass-card p-4 transition-all cursor-pointer ${
+                  isSelected ? 'border-glow-primary/50' : 'hover:border-glow-primary/30'
+                }`}
+                onClick={() => setSelectedStep(isSelected ? null : step)}
+              >
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-2 h-2 rounded-full mt-2 shrink-0"
+                    style={{ backgroundColor: color }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <h4 className="font-display text-lg text-text-light">{step.label}</h4>
+                      <span
+                        className="font-mono text-[9px] px-1.5 py-0.5 rounded"
+                        style={{
+                          backgroundColor: color + '15',
+                          color: color,
+                          border: `1px solid ${color}33`,
+                        }}
+                      >
+                        {CYCLE_LABELS[step.cycle]}
+                      </span>
+                      <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-background-card/50 border border-white/10 text-text-muted/70">
+                        {METABOLISM_TYPE_LABELS[step.metabolismType]}
+                      </span>
+                      <span className="font-mono text-[9px] text-glow-primary ml-auto">
+                        {step.energyOutput}
+                      </span>
+                    </div>
+                    <p className="font-mono text-xs text-text-muted/70 leading-relaxed mb-3 line-clamp-2">
+                      {step.description}
+                    </p>
+
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex flex-wrap gap-1">
+                        {step.reactants.map((r, i) => (
                           <span
-                            className="shrink-0 px-2 py-0.5 rounded-full text-[9px] font-mono border"
+                            key={i}
+                            className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-background-card/50 border border-white/5 text-text-light"
+                          >
+                            {r}
+                          </span>
+                        ))}
+                      </div>
+                      <ArrowRight className="w-3 h-3 text-text-muted/50 shrink-0" />
+                      <div className="flex flex-wrap gap-1">
+                        {step.products.map((p, i) => (
+                          <span
+                            key={i}
+                            className="font-mono text-[9px] px-1.5 py-0.5 rounded"
                             style={{
-                              color: cycleColor,
-                              borderColor: cycleColor + '44',
-                              backgroundColor: cycleColor + '10',
+                              backgroundColor: color + '15',
+                              color: color,
+                              border: `1px solid ${color}33`,
                             }}
                           >
-                            {CYCLE_LABELS[result.cycle]}
+                            {p}
                           </span>
-                          {!isCurrentCycle && (
-                            <span className="shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono bg-background-muted/60 text-text-muted/60">
-                              <ArrowRight className="w-2.5 h-2.5" />
-                              切换循环
-                            </span>
-                          )}
-                        </div>
-                        <p className="font-mono text-[11px] text-text-muted/60 truncate mt-0.5">
-                          {result.subtitle}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Zap className="w-3 h-3" style={{ color: cycleColor }} />
-                        <span className="font-mono text-[10px]" style={{ color: cycleColor }}>
-                          {METABOLISM_TYPE_LABELS[result.metabolismType]}
-                        </span>
+                        ))}
                       </div>
                     </div>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
 
-      {!query && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {[
-            { tag: '光合固碳', type: 'edge' as const, cycle: 'carbon' as const, from: 'c-co2', to: 'c-organic' },
-            { tag: '固氮', type: 'edge' as const, cycle: 'nitrogen' as const, from: 'n-n2', to: 'n-nh4' },
-            { tag: '发酵', type: 'edge' as const, cycle: 'carbon' as const, from: 'c-organic', to: 'c-dead' },
-            { tag: '产甲烷', type: 'edge' as const, cycle: 'carbon' as const, from: 'c-organic', to: 'c-ch4' },
-            { tag: '硫酸盐还原', type: 'edge' as const, cycle: 'sulfur' as const, from: 's-so4', to: 's-h2s' },
-            { tag: '反硝化', type: 'edge' as const, cycle: 'nitrogen' as const, from: 'n-no3', to: 'n-n2' },
-            { tag: '硫氧化', type: 'edge' as const, cycle: 'sulfur' as const, from: 's-h2s', to: 's-so4' },
-            { tag: 'CO₂', type: 'step' as const, cycle: 'carbon' as const, stepId: 'c-co2' },
-          ].map((item) => (
-            <button
-              key={item.tag}
-              onClick={() => {
-                setQuery(item.tag);
-                if (item.type === 'edge') {
-                  onEdgeSelect?.(item.from, item.to, item.cycle);
-                } else {
-                  onStepSelect?.(item.stepId, item.cycle);
-                }
-              }}
-              className="px-3 py-1 rounded-full border border-glow-primary/20 text-text-muted/60
-                         hover:border-glow-primary/50 hover:text-glow-primary transition-all
-                         font-mono text-[11px]"
-            >
-              {item.tag}
-            </button>
-          ))}
-        </div>
-      )}
+                    {isSelected && (
+                      <div className="mt-3 pt-3 border-t border-glow-primary/10 animate-fade-in-up">
+                        <p className="font-mono text-[10px] text-text-muted/50 mb-2">
+                          参与微生物 ({step.microbeIds.length})
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {step.microbeIds.map((mid) => {
+                            const microbe = microbes.find((m) => m.id === mid);
+                            if (!microbe) return null;
+                            return (
+                              <div
+                                key={mid}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-background-card/50 border border-white/5"
+                              >
+                                <div
+                                  className="w-1.5 h-1.5 rounded-full"
+                                  style={{
+                                    backgroundColor: CATEGORY_COLORS[microbe.category],
+                                  }}
+                                />
+                                <span className="font-mono text-[10px] text-text-light">
+                                  {microbe.name}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

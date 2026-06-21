@@ -1,563 +1,424 @@
-import { useState, useMemo, Fragment } from 'react';
-import { GitCompare, X, ChevronDown, ChevronUp, Zap, TrendingUp, Activity, Award } from 'lucide-react';
-import type { Microbe, BiogeochemicalCycle, MetabolismType } from '../../../shared/types';
-import { METABOLISM_TYPE_LABELS, CYCLE_LABELS, CYCLE_COLORS, CATEGORY_LABELS, CATEGORY_COLORS } from '../../../shared/types';
-import { microbeMetabolismProfiles } from '../../data/metabolismData';
+import { useState, useMemo } from 'react';
+import { Scale, Plus, X, TrendingUp, Check, AlertTriangle } from 'lucide-react';
+import { useAppStore } from '../../store/useAppStore';
+import {
+  microbeMetabolismProfiles,
+  getMicrobeCycles,
+  getMicrobeMetabolismTypes,
+} from '../../data/metabolismData';
+import type {
+  Microbe,
+  BiogeochemicalCycle,
+  MetabolismType,
+} from '../../../shared/types';
+import {
+  CATEGORY_COLORS,
+  CYCLE_COLORS,
+  CYCLE_LABELS,
+  METABOLISM_TYPE_LABELS,
+} from '../../../shared/types';
 
-interface MetabolismComparisonProps {
-  microbes: Microbe[];
-  onMicrobeClick?: (id: number, cycle?: BiogeochemicalCycle) => void;
-  onPathwayClick?: (microbeId: number, cycle: BiogeochemicalCycle, stepId: string) => void;
-}
+export function MetabolismComparison() {
+  const { microbes } = useAppStore();
+  const [selectedIds, setSelectedIds] = useState<number[]>([1, 9, 21]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
-export function MetabolismComparison({ microbes, onMicrobeClick, onPathwayClick }: MetabolismComparisonProps) {
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [expandedMicrobe, setExpandedMicrobe] = useState<number | null>(null);
-
-  const availableProfiles = useMemo(() => {
-    return microbeMetabolismProfiles.filter((p) =>
-      microbes.some((m) => m.id === p.microbeId)
+  const filteredMicrobes = useMemo(() => {
+    if (!search.trim()) return microbes;
+    const q = search.toLowerCase();
+    return microbes.filter(
+      (m) =>
+        m.name.toLowerCase().includes(q) ||
+        m.scientificName.toLowerCase().includes(q)
     );
-  }, [microbes]);
+  }, [microbes, search]);
 
-  const selectedProfiles = useMemo(() => {
-    return availableProfiles.filter((p) => selectedIds.includes(p.microbeId));
-  }, [availableProfiles, selectedIds]);
+  const selectedMicrobes: Microbe[] = selectedIds
+    .map((id) => microbes.find((m) => m.id === id))
+    .filter((m): m is Microbe => m !== undefined);
 
-  const allCycles: BiogeochemicalCycle[] = ['carbon', 'nitrogen', 'sulfur'];
-
-  const metabolismTypeStats = useMemo(() => {
-    if (selectedProfiles.length === 0) return [];
-    const stats: { type: MetabolismType; count: number; totalEfficiency: number }[] = [];
-    const typeMap = new Map<MetabolismType, { count: number; totalEfficiency: number }>();
-
-    selectedProfiles.forEach((p) => {
-      const seenTypes = new Set<MetabolismType>();
-      p.pathways.forEach((pw) => {
-        if (!seenTypes.has(pw.metabolismType)) {
-          seenTypes.add(pw.metabolismType);
-          const current = typeMap.get(pw.metabolismType) || { count: 0, totalEfficiency: 0 };
-          typeMap.set(pw.metabolismType, {
-            count: current.count + 1,
-            totalEfficiency: current.totalEfficiency + pw.efficiency,
-          });
-        }
-      });
-    });
-
-    typeMap.forEach((value, key) => {
-      stats.push({ type: key, ...value });
-    });
-
-    return stats.sort((a, b) => b.count - a.count);
-  }, [selectedProfiles]);
-
-  const toggleMicrobe = (id: number) => {
-    if (selectedIds.includes(id)) {
-      setSelectedIds(selectedIds.filter((i) => i !== id));
-    } else if (selectedIds.length < 4) {
-      setSelectedIds([...selectedIds, id]);
+  const commonCycles = useMemo(() => {
+    if (selectedMicrobes.length === 0) return [];
+    const cyclesMap = new Map<BiogeochemicalCycle, number>();
+    for (const m of selectedMicrobes) {
+      for (const c of getMicrobeCycles(m.id)) {
+        cyclesMap.set(c, (cyclesMap.get(c) ?? 0) + 1);
+      }
     }
+    return [...cyclesMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([cycle, count]) => ({ cycle, count }));
+  }, [selectedMicrobes]);
+
+  const commonMetabolismTypes = useMemo(() => {
+    if (selectedMicrobes.length === 0) return [];
+    const typesMap = new Map<MetabolismType, number>();
+    for (const m of selectedMicrobes) {
+      for (const t of getMicrobeMetabolismTypes(m.id)) {
+        typesMap.set(t, (typesMap.get(t) ?? 0) + 1);
+      }
+    }
+    return [...typesMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([type, count]) => ({ type, count }));
+  }, [selectedMicrobes]);
+
+  const complementarityScore = useMemo(() => {
+    if (selectedMicrobes.length < 2) return 0;
+    const allCycles = new Set<BiogeochemicalCycle>();
+    const allTypes = new Set<MetabolismType>();
+    for (const m of selectedMicrobes) {
+      getMicrobeCycles(m.id).forEach((c) => allCycles.add(c));
+      getMicrobeMetabolismTypes(m.id).forEach((t) => allTypes.add(t));
+    }
+    const cycleCoverage = allCycles.size / 3;
+    const typeCoverage = allTypes.size / 12;
+    return Math.round((cycleCoverage * 50 + typeCoverage * 50));
+  }, [selectedMicrobes]);
+
+  const handleAdd = (id: number) => {
+    if (selectedIds.length >= 6) return;
+    if (selectedIds.includes(id)) return;
+    setSelectedIds([...selectedIds, id]);
+    setPickerOpen(false);
+    setSearch('');
   };
 
-  const getMicrobeInfo = (id: number) => microbes.find((m) => m.id === id);
-
-  const getEfficiencyColor = (efficiency: number) => {
-    if (efficiency >= 0.85) return '#00ffc8';
-    if (efficiency >= 0.6) return '#f1c40f';
-    if (efficiency >= 0.4) return '#ff7b29';
-    return '#e74c3c';
-  };
-
-  const getMicrobeScore = (profile: typeof selectedProfiles[number]) => {
-    if (profile.pathways.length === 0) return 0;
-    const avgEfficiency = profile.pathways.reduce((sum, pw) => sum + pw.efficiency, 0) / profile.pathways.length;
-    const cycleCount = new Set(profile.pathways.map((pw) => pw.cycle)).size;
-    return Math.round((avgEfficiency * 0.6 + (cycleCount / 3) * 0.4) * 100);
+  const handleRemove = (id: number) => {
+    setSelectedIds(selectedIds.filter((i) => i !== id));
   };
 
   return (
     <div className="space-y-6">
       <div className="glass-card p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <GitCompare className="w-5 h-5 text-glow-primary" />
-          <h3 className="font-display text-2xl text-text-light">代谢能力对比</h3>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-2">
+            <Scale className="w-5 h-5 text-glow-primary" />
+            <h3 className="font-display text-xl text-text-light">代谢特征对比</h3>
+          </div>
+          <span className="font-mono text-xs text-text-muted/50">
+            最多选择6种
+          </span>
         </div>
-        <p className="font-mono text-sm text-text-muted/70 mb-5">
-          选择最多4种微生物，对比它们在碳循环、氮循环和硫循环中的代谢能力与效率
-        </p>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 mb-4">
-          {availableProfiles.map((profile) => {
-            const microbe = getMicrobeInfo(profile.microbeId);
-            if (!microbe) return null;
-            const isSelected = selectedIds.includes(profile.microbeId);
-            const score = getMicrobeScore(profile);
-
-            return (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {selectedMicrobes.map((m) => (
+            <div
+              key={m.id}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl border"
+              style={{
+                borderColor: CATEGORY_COLORS[m.category] + '44',
+                backgroundColor: CATEGORY_COLORS[m.category] + '08',
+              }}
+            >
+              <div
+                className="w-2 h-2 rounded-full shrink-0"
+                style={{ backgroundColor: CATEGORY_COLORS[m.category] }}
+              />
+              <span className="font-mono text-sm text-text-light">
+                {m.name}
+              </span>
               <button
-                key={profile.microbeId}
-                onClick={() => toggleMicrobe(profile.microbeId)}
-                className={`text-left p-3 rounded-xl border transition-all duration-300 relative overflow-hidden ${
-                  isSelected
-                    ? 'bg-glow-primary/10 border-glow-primary/50 shadow-[0_0_15px_rgba(0,255,200,0.15)]'
-                    : 'bg-background-card/50 border-glow-primary/10 hover:border-glow-primary/30'
-                }`}
+                onClick={() => handleRemove(m.id)}
+                className="w-5 h-5 rounded-md bg-glow-red/10 border border-glow-red/20 flex items-center justify-center text-glow-red hover:bg-glow-red/20 transition-colors"
               >
-                {isSelected && (
-                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-glow-primary flex items-center justify-center">
-                    <span className="text-[10px] text-background-deep font-bold">✓</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2 mb-1">
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{
-                      backgroundColor: CATEGORY_COLORS[microbe.category],
-                    }}
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+          {selectedIds.length < 6 && (
+            <div className="relative">
+              <button
+                onClick={() => setPickerOpen(!pickerOpen)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-glow-primary/30 text-glow-primary/70 hover:text-glow-primary hover:border-glow-primary/60 transition-all font-mono text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                添加
+              </button>
+              {pickerOpen && (
+                <div className="absolute z-20 top-full mt-2 left-0 w-64 glass-card p-3 animate-fade-in-up">
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="搜索..."
+                    className="w-full px-3 py-2 rounded-lg bg-background-card/80 border border-glow-primary/20 text-text-light font-mono text-sm focus:outline-none focus:border-glow-primary/60 mb-2"
+                    autoFocus
                   />
-                  <span className="font-mono text-sm text-text-light truncate pr-6">
-                    {microbe.name}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <span className="font-mono text-[10px] text-text-muted/50">
-                    {CATEGORY_LABELS[microbe.category]}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    <Award className="w-3 h-3 text-glow-gold" />
-                    <span className="font-mono text-[10px] text-glow-gold">{score}</span>
+                  <div className="max-h-48 overflow-y-auto space-y-1">
+                    {filteredMicrobes.map((m) => {
+                      const disabled = selectedIds.includes(m.id);
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => !disabled && handleAdd(m.id)}
+                          disabled={disabled}
+                          className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                            disabled
+                              ? 'opacity-40 cursor-not-allowed'
+                              : 'hover:bg-glow-primary/10'
+                          }`}
+                        >
+                          <div
+                            className="w-2 h-2 rounded-full"
+                            style={{
+                              backgroundColor: CATEGORY_COLORS[m.category],
+                            }}
+                          />
+                          <span className="font-mono text-sm text-text-light">
+                            {m.name}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="flex items-center gap-1 mt-1 flex-wrap">
-                  {allCycles.map((cycle) => {
-                    const hasCycle = profile.pathways.some((pw) => pw.cycle === cycle);
-                    return (
+              )}
+            </div>
+          )}
+        </div>
+
+        {selectedMicrobes.length >= 2 && (
+          <div className="glass-card p-4 mb-4 flex items-center gap-4">
+            <div>
+              <p className="font-mono text-[10px] text-text-muted/50 mb-1">
+                代谢互补性评分
+              </p>
+              <p
+                className="font-display text-3xl font-bold"
+                style={{
+                  color:
+                    complementarityScore >= 60
+                      ? '#00ffc8'
+                      : complementarityScore >= 30
+                      ? '#f1c40f'
+                      : '#e74c3c',
+                }}
+              >
+                {complementarityScore}
+              </p>
+            </div>
+            <div className="flex-1 h-3 rounded-full bg-background-muted overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${complementarityScore}%`,
+                  background:
+                    complementarityScore >= 60
+                      ? 'linear-gradient(90deg,#00ffc8,#00e5b0)'
+                      : complementarityScore >= 30
+                      ? 'linear-gradient(90deg,#f1c40f,#f39c12)'
+                      : 'linear-gradient(90deg,#e74c3c,#c0392b)',
+                }}
+              />
+            </div>
+            {complementarityScore >= 60 ? (
+              <div className="flex items-center gap-1 text-glow-primary">
+                <Check className="w-4 h-4" />
+                <span className="font-mono text-xs">互补性良好</span>
+              </div>
+            ) : complementarityScore >= 30 ? (
+              <div className="flex items-center gap-1 text-glow-yellow">
+                <TrendingUp className="w-4 h-4" />
+                <span className="font-mono text-xs">部分互补</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1 text-glow-red">
+                <AlertTriangle className="w-4 h-4" />
+                <span className="font-mono text-xs">高度重叠</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {selectedMicrobes.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-glow-primary/10">
+                  <th className="text-left py-3 px-2 font-mono text-[10px] text-text-muted/50 w-24">
+                    特征
+                  </th>
+                  {selectedMicrobes.map((m) => (
+                    <th
+                      key={m.id}
+                      className="text-center py-3 px-2 font-mono text-[10px]"
+                    >
                       <div
-                        key={cycle}
-                        className="w-1.5 h-1.5 rounded-full"
+                        className="w-2 h-2 rounded-full mx-auto mb-1"
                         style={{
-                          backgroundColor: hasCycle ? CYCLE_COLORS[cycle] : '#2d4a46',
-                          opacity: hasCycle ? 1 : 0.3,
+                          backgroundColor: CATEGORY_COLORS[m.category],
                         }}
                       />
+                      {m.name}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-glow-primary/5">
+                  <td className="py-3 px-2 font-mono text-[10px] text-text-muted/50 align-top">
+                    参与循环
+                  </td>
+                  {selectedMicrobes.map((m) => {
+                    const cycles = getMicrobeCycles(m.id);
+                    return (
+                      <td
+                        key={m.id}
+                        className="py-3 px-2 text-center align-top"
+                      >
+                        <div className="flex flex-wrap gap-1 justify-center">
+                          {cycles.map((c) => (
+                            <span
+                              key={c}
+                              className="font-mono text-[9px] px-1.5 py-0.5 rounded border"
+                              style={{
+                                color: CYCLE_COLORS[c],
+                                borderColor: CYCLE_COLORS[c] + '44',
+                                backgroundColor: CYCLE_COLORS[c] + '10',
+                              }}
+                            >
+                              {CYCLE_LABELS[c]}
+                            </span>
+                          ))}
+                          {cycles.length === 0 && (
+                            <span className="font-mono text-[9px] text-text-muted/30">
+                              -
+                            </span>
+                          )}
+                        </div>
+                      </td>
                     );
                   })}
-                  <span className="font-mono text-[10px] text-text-muted/40 ml-1">
-                    {profile.pathways.length}条路径
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                </tr>
+                <tr className="border-b border-glow-primary/5">
+                  <td className="py-3 px-2 font-mono text-[10px] text-text-muted/50 align-top">
+                    代谢类型
+                  </td>
+                  {selectedMicrobes.map((m) => {
+                    const types = getMicrobeMetabolismTypes(m.id);
+                    return (
+                      <td
+                        key={m.id}
+                        className="py-3 px-2 text-center align-top"
+                      >
+                        <div className="flex flex-col gap-1">
+                          {types.map((t) => (
+                            <span
+                              key={t}
+                              className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-background-card/50 border border-white/5 text-text-light"
+                            >
+                              {METABOLISM_TYPE_LABELS[t]}
+                            </span>
+                          ))}
+                          {types.length === 0 && (
+                            <span className="font-mono text-[9px] text-text-muted/30">
+                              -
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+                <tr>
+                  <td className="py-3 px-2 font-mono text-[10px] text-text-muted/50 align-top">
+                    途径数量
+                  </td>
+                  {selectedMicrobes.map((m) => {
+                    const profile = microbeMetabolismProfiles.find(
+                      (p) => p.microbeId === m.id
+                    );
+                    return (
+                      <td
+                        key={m.id}
+                        className="py-3 px-2 text-center align-top"
+                      >
+                        <span className="font-display text-lg text-glow-primary">
+                          {profile?.pathways.length ?? 0}
+                        </span>
+                      </td>
+                    );
+                  })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="font-mono text-sm text-text-muted/50">
+              请添加至少1种微生物进行代谢特征对比
+            </p>
+          </div>
+        )}
 
-        {selectedIds.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-mono text-[10px] text-text-muted/50">已选择：</span>
-            {selectedIds.map((id) => {
-              const m = getMicrobeInfo(id);
-              if (!m) return null;
-              return (
-                <span
-                  key={id}
-                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-glow-primary/10 border border-glow-primary/30 text-glow-primary font-mono text-[11px]"
-                >
-                  {m.name}
-                  <button onClick={() => toggleMicrobe(id)} className="hover:text-text-light">
-                    <X className="w-3 h-3" />
-                  </button>
-                </span>
-              );
-            })}
-            <button
-              onClick={() => setSelectedIds([])}
-              className="font-mono text-[10px] text-text-muted/50 hover:text-glow-red transition-colors ml-2"
-            >
-              清除全部
-            </button>
+        {(commonCycles.length > 0 || commonMetabolismTypes.length > 0) && (
+          <div className="grid sm:grid-cols-2 gap-4 mt-5 pt-5 border-t border-glow-primary/10">
+            <div className="glass-card p-4">
+              <p className="font-mono text-[10px] text-text-muted/50 mb-3">
+                参与生物地球化学循环
+              </p>
+              <div className="space-y-2">
+                {commonCycles.map(({ cycle, count }) => (
+                  <div key={cycle} className="flex items-center gap-2">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{ backgroundColor: CYCLE_COLORS[cycle] }}
+                    />
+                    <span className="font-mono text-xs text-text-light flex-1">
+                      {CYCLE_LABELS[cycle]}
+                    </span>
+                    <div className="flex -space-x-1">
+                      {Array.from({ length: count }).map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-4 h-4 rounded-full border-2 border-background-deep"
+                          style={{ backgroundColor: CYCLE_COLORS[cycle] + '40' }}
+                        />
+                      ))}
+                    </div>
+                    <span
+                      className="font-mono text-xs"
+                      style={{ color: CYCLE_COLORS[cycle] }}
+                    >
+                      {count}/{selectedMicrobes.length}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="glass-card p-4">
+              <p className="font-mono text-[10px] text-text-muted/50 mb-3">
+                共有的代谢类型
+              </p>
+              <div className="space-y-2">
+                {commonMetabolismTypes.slice(0, 5).map(({ type, count }) => (
+                  <div
+                    key={type}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="font-mono text-xs text-text-light flex-1">
+                      {METABOLISM_TYPE_LABELS[type]}
+                    </span>
+                    <div className="flex-1 h-2 rounded-full bg-background-muted overflow-hidden mx-2 max-w-[120px]">
+                      <div
+                        className="h-full rounded-full bg-glow-primary/50"
+                        style={{
+                          width: `${(count / selectedMicrobes.length) * 100}%`,
+                        }}
+                      />
+                    </div>
+                    <span className="font-mono text-xs text-glow-primary">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
-
-      {selectedProfiles.length >= 2 && (
-        <>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="glass-card p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <TrendingUp className="w-5 h-5 text-glow-primary" />
-                <h4 className="font-display text-xl text-text-light">综合代谢评分</h4>
-              </div>
-              <div className="space-y-4">
-                {selectedProfiles
-                  .map((p) => ({ profile: p, score: getMicrobeScore(p) }))
-                  .sort((a, b) => b.score - a.score)
-                  .map(({ profile, score }, idx) => {
-                    const microbe = getMicrobeInfo(profile.microbeId);
-                    if (!microbe) return null;
-                    const maxScore = 100;
-                    return (
-                      <div key={profile.microbeId}>
-                        <div className="flex items-center justify-between mb-1.5">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`font-mono text-xs w-5 h-5 rounded-full flex items-center justify-center ${
-                                idx === 0
-                                  ? 'bg-glow-gold/20 text-glow-gold border border-glow-gold/50'
-                                  : idx === 1
-                                  ? 'bg-text-muted/20 text-text-muted border border-text-muted/30'
-                                  : 'bg-glow-orange/20 text-glow-orange border border-glow-orange/30'
-                              }`}
-                            >
-                              {idx + 1}
-                            </span>
-                            <span className="font-mono text-sm text-text-light">{microbe.name}</span>
-                          </div>
-                          <span
-                            className="font-mono text-sm font-bold"
-                            style={{ color: getEfficiencyColor(score / 100) }}
-                          >
-                            {score}分
-                          </span>
-                        </div>
-                        <div className="w-full h-3 rounded-full bg-background-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{
-                              width: `${(score / maxScore) * 100}%`,
-                              backgroundColor: getEfficiencyColor(score / 100),
-                              boxShadow: `0 0 10px ${getEfficiencyColor(score / 100)}40`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-
-            <div className="glass-card p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Activity className="w-5 h-5 text-glow-purple" />
-                <h4 className="font-display text-xl text-text-light">代谢类型分布</h4>
-              </div>
-              {metabolismTypeStats.length > 0 ? (
-                <div className="space-y-3">
-                  {metabolismTypeStats.slice(0, 6).map((stat) => {
-                    const percentage = (stat.count / selectedProfiles.length) * 100;
-                    const avgEff = stat.totalEfficiency / stat.count;
-                    return (
-                      <div key={stat.type}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-mono text-xs text-text-light">
-                            {METABOLISM_TYPE_LABELS[stat.type]}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-[10px] text-text-muted/50">
-                              {stat.count}/{selectedProfiles.length}
-                            </span>
-                            <span
-                              className="font-mono text-[10px]"
-                              style={{ color: getEfficiencyColor(avgEff) }}
-                            >
-                              ~{Math.round(avgEff * 100)}%
-                            </span>
-                          </div>
-                        </div>
-                        <div className="w-full h-2 rounded-full bg-background-muted overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500 bg-gradient-to-r"
-                            style={{
-                              width: `${percentage}%`,
-                              background: `linear-gradient(90deg, ${getEfficiencyColor(avgEff)}88, ${getEfficiencyColor(avgEff)})`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="font-mono text-sm text-text-muted/50 text-center py-4">暂无数据</p>
-              )}
-            </div>
-          </div>
-
-          <div className="glass-card p-6">
-            <h4 className="font-display text-xl text-text-light mb-5">代谢路径概览</h4>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-glow-primary/10">
-                    <th className="text-left font-mono text-xs text-text-muted/60 py-3 px-3">
-                      代谢路径
-                    </th>
-                    <th className="text-left font-mono text-xs text-text-muted/60 py-3 px-3">
-                      代谢类型
-                    </th>
-                    {selectedProfiles.map((p) => (
-                      <th key={p.microbeId} className="text-center font-mono text-xs text-text-muted/60 py-3 px-3 min-w-[100px]">
-                        {p.microbeName}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {allCycles.map((cycle) => {
-                    const cycleSteps = new Map<string, { role: string; efficiency: number; metabolismType: MetabolismType }[]>();
-                    selectedProfiles.forEach((p) => {
-                      const pathways = p.pathways.filter((pw) => pw.cycle === cycle);
-                      pathways.forEach((pw) => {
-                        if (!cycleSteps.has(pw.stepId)) {
-                          cycleSteps.set(pw.stepId, []);
-                        }
-                        cycleSteps.get(pw.stepId)!.push({
-                          role: pw.role,
-                          efficiency: pw.efficiency,
-                          metabolismType: pw.metabolismType,
-                        });
-                      });
-                    });
-
-                    if (cycleSteps.size === 0) return null;
-
-                    return (
-                      <Fragment key={cycle}>
-                        <tr key={`cycle-header-${cycle}`}>
-                          <td
-                            colSpan={2 + selectedProfiles.length}
-                            className="py-2 px-3"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-2 h-2 rounded-full"
-                                style={{ backgroundColor: CYCLE_COLORS[cycle] }}
-                              />
-                              <span
-                                className="font-mono text-xs font-bold"
-                                style={{ color: CYCLE_COLORS[cycle] }}
-                              >
-                                {CYCLE_LABELS[cycle]}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                        {Array.from(cycleSteps.entries()).map(([stepId, profiles], idx) => (
-                          <tr
-                            key={`${cycle}-${stepId}-${idx}`}
-                            className="border-b border-white/5 hover:bg-glow-primary/5"
-                          >
-                            <td className="py-3 px-3 font-mono text-sm text-text-light">
-                              {profiles[0]?.role || stepId}
-                            </td>
-                            <td className="py-3 px-3">
-                              <span className="font-mono text-[11px] px-2 py-0.5 rounded-full border border-glow-primary/20 text-glow-primary bg-glow-primary/5">
-                                {profiles[0] ? METABOLISM_TYPE_LABELS[profiles[0].metabolismType] : '-'}
-                              </span>
-                            </td>
-                            {selectedProfiles.map((p) => {
-                              const pathway = p.pathways.find(
-                                (pw) => pw.cycle === cycle && pw.stepId === stepId
-                              );
-                              return (
-                                <td key={p.microbeId} className="py-3 px-3 text-center">
-                                  {pathway ? (
-                                    <div className="flex flex-col items-center gap-1">
-                                      <div className="w-16 h-2 rounded-full bg-background-muted overflow-hidden">
-                                        <div
-                                          className="h-full rounded-full transition-all duration-500"
-                                          style={{
-                                            width: `${pathway.efficiency * 100}%`,
-                                            backgroundColor: getEfficiencyColor(pathway.efficiency),
-                                          }}
-                                        />
-                                      </div>
-                                      <span
-                                        className="font-mono text-[10px]"
-                                        style={{ color: getEfficiencyColor(pathway.efficiency) }}
-                                      >
-                                        {Math.round(pathway.efficiency * 100)}%
-                                      </span>
-                                    </div>
-                                  ) : (
-                                    <span className="font-mono text-[10px] text-text-muted/30">-</span>
-                                  )}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="glass-card p-6">
-            <h4 className="font-display text-xl text-text-light mb-5">代谢能力雷达</h4>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {selectedProfiles.map((profile) => {
-                const microbe = getMicrobeInfo(profile.microbeId);
-                if (!microbe) return null;
-                const isExpanded = expandedMicrobe === profile.microbeId;
-
-                const cycleScores = allCycles.map((cycle) => {
-                  const pathways = profile.pathways.filter((pw) => pw.cycle === cycle);
-                  const avgEff = pathways.length > 0
-                    ? pathways.reduce((sum, pw) => sum + pw.efficiency, 0) / pathways.length
-                    : 0;
-                  return { cycle, avgEff, count: pathways.length };
-                });
-
-                const score = getMicrobeScore(profile);
-                const maxBarHeight = 80;
-
-                return (
-                  <div
-                    key={profile.microbeId}
-                    className="glass-card p-4 cursor-pointer hover:border-glow-primary/40 transition-all"
-                    onClick={() => {
-                      const cycleCounts = allCycles.map((cycle) => ({
-                        cycle,
-                        count: profile.pathways.filter((pw) => pw.cycle === cycle).length,
-                      }));
-                      const topCycle = cycleCounts.sort((a, b) => b.count - a.count)[0];
-                      setExpandedMicrobe(isExpanded ? null : profile.microbeId);
-                      onMicrobeClick?.(
-                        profile.microbeId,
-                        topCycle && topCycle.count > 0 ? topCycle.cycle : undefined
-                      );
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="w-2 h-2 rounded-full"
-                          style={{ backgroundColor: CATEGORY_COLORS[microbe.category] }}
-                        />
-                        <span className="font-mono text-sm text-text-light truncate">
-                          {microbe.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Award className="w-3 h-3 text-glow-gold" />
-                        <span className="font-mono text-xs text-glow-gold font-bold">{score}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-end justify-around gap-2" style={{ height: maxBarHeight + 20 }}>
-                      {cycleScores.map(({ cycle, avgEff, count }) => (
-                        <div key={cycle} className="flex flex-col items-center gap-1">
-                          <span
-                            className="font-mono text-[10px]"
-                            style={{ color: getEfficiencyColor(avgEff) }}
-                          >
-                            {avgEff > 0 ? Math.round(avgEff * 100) + '%' : '-'}
-                          </span>
-                          <div
-                            className="w-8 rounded-t-md transition-all duration-500 relative"
-                            style={{
-                              height: avgEff > 0 ? Math.max(4, avgEff * maxBarHeight) : 4,
-                              backgroundColor: avgEff > 0 ? CYCLE_COLORS[cycle] : '#2d4a46',
-                              opacity: avgEff > 0 ? 0.8 : 0.3,
-                            }}
-                          >
-                            {count > 0 && (
-                              <span className="absolute -top-4 left-1/2 -translate-x-1/2 font-mono text-[8px] text-text-muted/60">
-                                {count}条
-                              </span>
-                            )}
-                          </div>
-                          <span
-                            className="font-mono text-[9px]"
-                            style={{ color: CYCLE_COLORS[cycle] }}
-                          >
-                            {CYCLE_LABELS[cycle].replace('循环', '')}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-glow-primary/10">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-text-muted/50">
-                          代谢路径总数
-                        </span>
-                        <span className="font-mono text-sm text-glow-primary">
-                          {profile.pathways.length}
-                        </span>
-                      </div>
-                    </div>
-
-                    {isExpanded && (
-                      <div className="mt-3 pt-3 border-t border-glow-primary/10 space-y-2 animate-fade-in-up">
-                        {profile.pathways.map((pw, idx) => (
-                          <button
-                            key={idx}
-                            className="w-full text-left flex items-start gap-2 p-1.5 -mx-1.5 rounded-lg hover:bg-glow-primary/10 transition-colors"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onPathwayClick?.(profile.microbeId, pw.cycle, pw.stepId);
-                            }}
-                          >
-                            <Zap className="w-3 h-3 mt-0.5 shrink-0" style={{ color: CYCLE_COLORS[pw.cycle] }} />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-mono text-[11px] text-text-light">{pw.role}</p>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                <span
-                                  className="font-mono text-[9px] px-1.5 py-0.5 rounded border"
-                                  style={{
-                                    color: CYCLE_COLORS[pw.cycle],
-                                    borderColor: CYCLE_COLORS[pw.cycle] + '44',
-                                    backgroundColor: CYCLE_COLORS[pw.cycle] + '10',
-                                  }}
-                                >
-                                  {CYCLE_LABELS[pw.cycle]}
-                                </span>
-                                <span className="font-mono text-[9px] px-1.5 py-0.5 rounded border border-glow-primary/20 text-glow-primary bg-glow-primary/5">
-                                  {METABOLISM_TYPE_LABELS[pw.metabolismType]}
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-3 flex items-center justify-center text-text-muted/40">
-                      {isExpanded ? (
-                        <ChevronUp className="w-4 h-4" />
-                      ) : (
-                        <ChevronDown className="w-4 h-4" />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </>
-      )}
-
-      {selectedProfiles.length === 1 && (
-        <div className="glass-card p-6">
-          <p className="font-mono text-sm text-text-muted/60 text-center">
-            请至少选择2种微生物以查看对比分析
-          </p>
-        </div>
-      )}
-
-      {selectedProfiles.length === 0 && (
-        <div className="glass-card p-8 text-center">
-          <GitCompare className="w-10 h-10 text-text-muted/20 mx-auto mb-3" />
-          <p className="font-mono text-sm text-text-muted/50">选择微生物开始对比分析</p>
-          <p className="font-mono text-[10px] text-text-muted/30 mt-1">
-            点击上方微生物卡片添加至对比面板（最多4种）
-          </p>
-        </div>
-      )}
     </div>
   );
 }
