@@ -12,10 +12,12 @@ import {
   Sparkles,
   GitCompare,
   X,
+  Network,
 } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { GrowthChart } from '../components/GrowthChart';
 import { ExperimentList } from '../components/ExperimentList';
+import { MicrobialNetworkLab } from '../components/network/MicrobialNetworkLab';
 import type { ExperimentConditions, ExperimentRecord } from '../../shared/types';
 import {
   DEFAULT_CONDITIONS,
@@ -126,6 +128,7 @@ export function LabPage() {
   const [viewingExperiment, setViewingExperiment] =
     useState<ExperimentRecord | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'simulation' | 'network'>('simulation');
 
   useEffect(() => {
     fetchMicrobes();
@@ -235,21 +238,52 @@ export function LabPage() {
 
   return (
     <div className="container mx-auto px-6 pt-32 pb-20">
-      <div className="text-center mb-16">
-        <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-glow-primary/30 bg-glow-primary/5 backdrop-blur-sm mb-6">
-          <Sparkles className="w-4 h-4 text-glow-primary" />
-          <span className="font-mono text-xs text-glow-primary tracking-[0.2em] uppercase">
-            Microbial Simulation Lab
-          </span>
+      <div className="flex justify-center mb-8">
+        <div className="glass-card p-1.5 flex gap-1">
+          <button
+            onClick={() => setActiveTab('simulation')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-300 ${
+              activeTab === 'simulation'
+                ? 'bg-glow-primary/15 text-glow-primary border border-glow-primary/40 shadow-[0_0_20px_rgba(0,255,200,0.15)]'
+                : 'text-text-muted/70 hover:text-text-light hover:bg-background-card/50 border border-transparent'
+            }`}
+          >
+            <Microscope className="w-4 h-4" />
+            <span className="font-mono text-sm">培养实验室</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('network')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl transition-all duration-300 ${
+              activeTab === 'network'
+                ? 'bg-glow-purple/15 text-glow-purple border border-glow-purple/40 shadow-[0_0_20px_rgba(155,89,182,0.2)]'
+                : 'text-text-muted/70 hover:text-text-light hover:bg-background-card/50 border border-transparent'
+            }`}
+          >
+            <Network className="w-4 h-4" />
+            <span className="font-mono text-sm">关系网络馆</span>
+          </button>
         </div>
-        <h1 className="font-display text-5xl md:text-7xl font-semibold text-text-light mb-6">
-          微生物<span className="text-gradient-primary">培养实验室</span>
-        </h1>
-        <p className="font-mono text-text-muted/70 max-w-2xl mx-auto">
-          调整温度、湿度、pH值和营养浓度，模拟不同环境下微生物的生长曲线。
-          保存实验记录，对比不同条件下的生长差异。
-        </p>
       </div>
+
+      {activeTab === 'network' ? (
+        <MicrobialNetworkLab />
+      ) : (
+        <>
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-glow-primary/30 bg-glow-primary/5 backdrop-blur-sm mb-6">
+              <Sparkles className="w-4 h-4 text-glow-primary" />
+              <span className="font-mono text-xs text-glow-primary tracking-[0.2em] uppercase">
+                Microbial Simulation Lab
+              </span>
+            </div>
+            <h1 className="font-display text-5xl md:text-7xl font-semibold text-text-light mb-6">
+              微生物<span className="text-gradient-primary">培养实验室</span>
+            </h1>
+            <p className="font-mono text-text-muted/70 max-w-2xl mx-auto">
+              调整温度、湿度、pH值和营养浓度，模拟不同环境下微生物的生长曲线。
+              保存实验记录，对比不同条件下的生长差异。
+            </p>
+          </div>
 
       <div className="grid lg:grid-cols-[380px_1fr] gap-6">
         <div className="space-y-6">
@@ -596,6 +630,8 @@ export function LabPage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

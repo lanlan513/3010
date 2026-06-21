@@ -96,3 +96,65 @@ export const EXPERIMENT_COLORS = [
   '#1abc9c',
   '#e91e63',
 ];
+
+export type EcologicalRelationType = 'symbiosis' | 'competition' | 'parasitism' | 'predation';
+
+export const RELATION_TYPE_LABELS: Record<EcologicalRelationType, string> = {
+  symbiosis: '共生',
+  competition: '竞争',
+  parasitism: '寄生',
+  predation: '捕食',
+};
+
+export const RELATION_TYPE_COLORS: Record<EcologicalRelationType, string> = {
+  symbiosis: '#00ffc8',
+  competition: '#f1c40f',
+  parasitism: '#9b59b6',
+  predation: '#e74c3c',
+};
+
+export const RELATION_TYPE_DESCRIPTIONS: Record<EcologicalRelationType, string> = {
+  symbiosis: '两种微生物相互受益，共同生活的关系',
+  competition: '争夺相同资源（营养、空间等）的竞争关系',
+  parasitism: '一种微生物寄生于另一种并从中获取营养',
+  predation: '一种微生物捕食并吞噬另一种微生物',
+};
+
+export interface EcologicalRelation {
+  id: string;
+  sourceId: number;
+  targetId: number;
+  type: EcologicalRelationType;
+  strength: number;
+  description: string;
+}
+
+export interface NetworkNode {
+  id: number;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  microbe: Microbe;
+}
+
+export interface NetworkEdge {
+  id: string;
+  source: number;
+  target: number;
+  type: EcologicalRelationType;
+  strength: number;
+  description: string;
+}
+
+export interface PathStep {
+  fromId: number;
+  toId: number;
+  relationType: EcologicalRelationType;
+  description: string;
+}
+
+export interface RelationPath {
+  steps: PathStep[];
+  totalStrength: number;
+}
