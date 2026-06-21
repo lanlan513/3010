@@ -323,6 +323,7 @@ export interface CollaborationExperimentConfig {
   ph: number;
   nutrients: number;
   duration: number;
+  finalPopulations?: Record<number, number>;
 }
 
 export interface CollaborationExperimentRecord {

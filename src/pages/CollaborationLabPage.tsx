@@ -158,6 +158,14 @@ export function CollaborationLabPage() {
   const [viewingReport, setViewingReport] = useState<CollaborationExperimentRecord | null>(null);
   const [activeTab, setActiveTab] = useState<'experiment' | 'history'>('experiment');
   const reportRef = useRef<HTMLDivElement>(null);
+  const lastSimulateConfig = useRef<{
+    microbes: CommunityMicrobe[];
+    temperature: number;
+    humidity: number;
+    ph: number;
+    nutrients: number;
+    duration: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchMicrobes();
@@ -210,40 +218,78 @@ export function CollaborationLabPage() {
 
   const handleSimulate = useCallback(() => {
     if (selectedMicrobes.length < 2) return;
-    const report = simulateCommunity(selectedMicrobes, temperature, ph, nutrients, duration);
-    setStabilityReport(report);
-    setViewingReport(null);
-    setTimeout(() => {
-      reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-  }, [selectedMicrobes, temperature, ph, nutrients, duration]);
-
-  const handleSave = useCallback(() => {
-    if (!expName.trim() || !stabilityReport) return;
-    const config: CollaborationExperimentConfig = {
-      id: `collab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-      name: expName.trim(),
-      createdAt: Date.now(),
-      microbes: [...selectedMicrobes],
+    const snapshot = {
+      microbes: selectedMicrobes.map((m) => ({ ...m })),
       temperature,
       humidity,
       ph,
       nutrients,
       duration,
     };
+    const report = simulateCommunity(snapshot.microbes, snapshot.temperature, snapshot.ph, snapshot.nutrients, snapshot.duration);
+    lastSimulateConfig.current = snapshot;
+    setStabilityReport(report);
+    setViewingReport(null);
+    setTimeout(() => {
+      reportRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }, [selectedMicrobes, temperature, humidity, ph, nutrients, duration]);
+
+  const handleSave = useCallback(() => {
+    if (!expName.trim() || !stabilityReport) return;
+    let snapshot: {
+      microbes: CommunityMicrobe[];
+      temperature: number;
+      humidity: number;
+      ph: number;
+      nutrients: number;
+      duration: number;
+      finalPopulations?: Record<number, number>;
+    } | null = null;
+
+    if (viewingReport) {
+      snapshot = {
+        microbes: viewingReport.config.microbes.map((m) => ({ ...m })),
+        temperature: viewingReport.config.temperature,
+        humidity: viewingReport.config.humidity,
+        ph: viewingReport.config.ph,
+        nutrients: viewingReport.config.nutrients,
+        duration: viewingReport.config.duration,
+        finalPopulations: viewingReport.config.finalPopulations,
+      };
+    } else if (lastSimulateConfig.current) {
+      snapshot = { ...lastSimulateConfig.current };
+    }
+    if (!snapshot) return;
+
+    const report = viewingReport?.stabilityReport ?? stabilityReport;
+    const timeline = report.timeline;
+    const finalPopulations = snapshot.finalPopulations ?? (timeline.length > 0 ? { ...timeline[timeline.length - 1].populations } : undefined);
+    const config: CollaborationExperimentConfig = {
+      id: `collab_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      name: expName.trim(),
+      createdAt: Date.now(),
+      microbes: snapshot.microbes.map((m) => ({ ...m })),
+      temperature: snapshot.temperature,
+      humidity: snapshot.humidity,
+      ph: snapshot.ph,
+      nutrients: snapshot.nutrients,
+      duration: snapshot.duration,
+      finalPopulations,
+    };
     const record: CollaborationExperimentRecord = {
       id: config.id,
       name: expName.trim(),
       createdAt: Date.now(),
       config,
-      stabilityReport,
+      stabilityReport: report,
     };
     const newExperiments = [record, ...experiments];
     setExperiments(newExperiments);
     saveCollabExperiments(newExperiments);
     setShowSaveModal(false);
     setExpName('');
-  }, [expName, stabilityReport, selectedMicrobes, temperature, humidity, ph, nutrients, duration, experiments]);
+  }, [expName, stabilityReport, experiments, viewingReport]);
 
   const handleShare = useCallback(() => {
     const code = generateShareCode({
@@ -439,7 +485,7 @@ export function CollaborationLabPage() {
                     </button>
 
                     {showMicrobePicker && (
-                      <div className="absolute z-20 top-full mt-2 left-0 right-0 glass-card p-3 max-h-64 overflow-y-auto animate-fade-in-up">
+                      <div className="absolute z-[100] top-full mt-2 left-0 right-0 glass-card p-3 max-h-64 overflow-y-auto animate-fade-in-up shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
                         <input
                           type="text"
                           value={microbeSearch}
