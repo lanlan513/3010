@@ -15,6 +15,8 @@ import { AbilityAtlasPage } from './pages/AbilityAtlasPage';
 import { IndustryAppPage } from './pages/IndustryAppPage';
 import { IndustryAppDetailPage } from './pages/IndustryAppDetailPage';
 import { TreeOfLifePage } from './pages/TreeOfLifePage';
+import { SpecimenHallPage } from './pages/SpecimenHallPage';
+import { SpecimenDetailPage } from './pages/SpecimenDetailPage';
 import { NotFoundPage } from './pages/NotFoundPage';
 
 export default function App() {
@@ -38,6 +40,8 @@ export default function App() {
             <Route path="/industry" element={<IndustryAppPage />} />
             <Route path="/industry/:id" element={<IndustryAppDetailPage />} />
             <Route path="/tree-of-life" element={<TreeOfLifePage />} />
+            <Route path="/specimen-hall" element={<SpecimenHallPage />} />
+            <Route path="/specimen/:id" element={<SpecimenDetailPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </main>

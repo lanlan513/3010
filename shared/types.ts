@@ -582,3 +582,198 @@ export interface IndustrialApplication {
     value: string;
   }[];
 }
+
+export interface MorphologyFeature {
+  id: string;
+  label: string;
+  value: string;
+  description: string;
+  icon?: string;
+}
+
+export interface HabitatDetail {
+  id: string;
+  type: string;
+  description: string;
+  temperature: [number, number];
+  phRange: [number, number];
+  salinity: string;
+  oxygenRequirement: 'aerobic' | 'anaerobic' | 'facultative' | 'microaerophilic';
+  commonLocations: string[];
+  ecologicalRole: string;
+}
+
+export interface DiscoveryHistoryEvent {
+  id: string;
+  year: number;
+  title: string;
+  description: string;
+  discoverer: string;
+  significance: string;
+  imageUrl?: string;
+}
+
+export interface MetabolicCapability {
+  id: string;
+  name: string;
+  category: MetabolismType;
+  efficiency: number;
+  description: string;
+  substrates: string[];
+  products: string[];
+  keyEnzymes: string[];
+  pathwayReference?: string;
+}
+
+export interface ApplicationValue {
+  id: string;
+  category: IndustrialCategory;
+  title: string;
+  description: string;
+  maturity: 'research' | 'pilot' | 'commercial' | 'established';
+  marketScale: string;
+  keyAdvantages: string[];
+  caseStudies: {
+    title: string;
+    organization: string;
+    outcome: string;
+  }[];
+}
+
+export interface KnowledgeCard {
+  id: string;
+  type: 'morphology' | 'habitat' | 'discovery' | 'metabolism' | 'application' | 'fun_fact';
+  title: string;
+  content: string;
+  dataSource: string;
+  lastUpdated: string;
+  tags: string[];
+}
+
+export interface MultiViewModel {
+  id: string;
+  name: string;
+  type: 'electron_micrograph' | 'fluorescence' | 'confocal' | '3d_reconstruction' | 'schematic';
+  description: string;
+  resolution: string;
+  magnification: string;
+  technique: string;
+  imageUrl: string;
+  viewAngle?: string;
+  scaleBar: string;
+}
+
+export interface HighResImage {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  thumbnailUrl: string;
+  resolution: string;
+  copyright: string;
+  captureMethod: string;
+}
+
+export interface DigitalSpecimen {
+  id: number;
+  microbeId: number;
+  specimenCode: string;
+  collectionDate: string;
+  collectionLocation: string;
+  collector: string;
+  preservationMethod: string;
+  storageConditions: string;
+  accessionNumber: string;
+  taxonomicClassification: {
+    kingdom: string;
+    phylum: string;
+    class: string;
+    order: string;
+    family: string;
+    genus: string;
+    species: string;
+  };
+  morphology: {
+    cellShape: string;
+    cellSize: string;
+    gramStain: 'positive' | 'negative' | 'variable' | 'not_applicable';
+    motility: boolean;
+    sporeFormation: boolean;
+    capsule: boolean;
+    arrangement: string;
+    specialFeatures: string[];
+    detailedFeatures: MorphologyFeature[];
+  };
+  habitat: HabitatDetail;
+  discoveryTimeline: DiscoveryHistoryEvent[];
+  metabolicCapabilities: MetabolicCapability[];
+  applications: ApplicationValue[];
+  knowledgeCards: KnowledgeCard[];
+  multiViewModels: MultiViewModel[];
+  highResImages: HighResImage[];
+  qualityScore: number;
+  completenessIndex: number;
+  references: {
+    id: string;
+    title: string;
+    authors: string;
+    journal: string;
+    year: number;
+    doi?: string;
+  }[];
+  notes: string;
+}
+
+export const SPECIMEN_TYPE_LABELS: Record<MultiViewModel['type'], string> = {
+  electron_micrograph: '电子显微镜',
+  fluorescence: '荧光成像',
+  confocal: '共聚焦扫描',
+  '3d_reconstruction': '三维重建',
+  schematic: '结构示意图',
+};
+
+export const OXYGEN_REQUIREMENT_LABELS: Record<HabitatDetail['oxygenRequirement'], string> = {
+  aerobic: '需氧',
+  anaerobic: '厌氧',
+  facultative: '兼性厌氧',
+  microaerophilic: '微需氧',
+};
+
+export const MATURITY_LABELS: Record<ApplicationValue['maturity'], string> = {
+  research: '研究阶段',
+  pilot: '中试阶段',
+  commercial: '商业化',
+  established: '成熟应用',
+};
+
+export const MATURITY_COLORS: Record<ApplicationValue['maturity'], string> = {
+  research: '#9b59b6',
+  pilot: '#3498db',
+  commercial: '#00ffc8',
+  established: '#2ecc71',
+};
+
+export const GRAM_STAIN_LABELS: Record<DigitalSpecimen['morphology']['gramStain'], string> = {
+  positive: '革兰氏阳性',
+  negative: '革兰氏阴性',
+  variable: '革兰氏多变',
+  not_applicable: '不适用',
+};
+
+export const SPECIMEN_CATEGORY_COLORS: Record<KnowledgeCard['type'], string> = {
+  morphology: '#00ffc8',
+  habitat: '#3498db',
+  discovery: '#f1c40f',
+  metabolism: '#9b59b6',
+  application: '#2ecc71',
+  fun_fact: '#e67e22',
+};
+
+export const SPECIMEN_CATEGORY_LABELS: Record<KnowledgeCard['type'], string> = {
+  morphology: '形态特征',
+  habitat: '生存环境',
+  discovery: '发现历史',
+  metabolism: '代谢能力',
+  application: '应用价值',
+  fun_fact: '趣味知识',
+};

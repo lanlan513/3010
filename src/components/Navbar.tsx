@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Dna, Search, Menu, X, MapPin, Microscope, BookOpen, Atom, Users, BarChart3, Factory, TreeDeciduous } from 'lucide-react';
+import { Home, Dna, Search, Menu, X, MapPin, Microscope, BookOpen, Atom, Users, BarChart3, Factory, TreeDeciduous, Database } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 export function Navbar() {
@@ -15,6 +15,7 @@ export function Navbar() {
 
   const navItems = [
     { to: '/', label: '首页大厅', icon: Home },
+    { to: '/specimen-hall', label: '数字标本馆', icon: Database },
     { to: '/tree-of-life', label: '生命树大厅', icon: TreeDeciduous },
     { to: '/ability-atlas', label: '能力图鉴', icon: BarChart3 },
     { to: '/industry', label: '工业应用馆', icon: Factory },
@@ -73,7 +74,7 @@ export function Navbar() {
                 }`}
               >
                 <span className="flex items-center gap-2">
-                  {(item.to === '/' || item.to === '/tree-of-life' || item.to === '/ability-atlas' || item.to === '/industry' || item.to === '/habitat-map' || item.to === '/metabolism' || item.to === '/lab' || item.to === '/collaboration' || item.to === '/archive') && <Icon className="w-4 h-4" />}
+                  {(item.to === '/' || item.to === '/specimen-hall' || item.to === '/tree-of-life' || item.to === '/ability-atlas' || item.to === '/industry' || item.to === '/habitat-map' || item.to === '/metabolism' || item.to === '/lab' || item.to === '/collaboration' || item.to === '/archive') && <Icon className="w-4 h-4" />}
                   {item.label}
                 </span>
                 {isActive && (
