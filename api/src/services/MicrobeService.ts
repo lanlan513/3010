@@ -7,6 +7,7 @@ export class MicrobeService {
   static getAll(params?: {
     category?: MicrobeCategory;
     search?: string;
+    habitat?: string;
     limit?: number;
     offset?: number;
   }): Microbe[] {
@@ -14,6 +15,13 @@ export class MicrobeService {
 
     if (params?.category) {
       result = result.filter((m) => m.category === params.category);
+    }
+
+    if (params?.habitat) {
+      const keywords = params.habitat.split(',').map((k) => k.trim().toLowerCase());
+      result = result.filter((m) =>
+        keywords.some((kw) => m.habitat.toLowerCase().includes(kw))
+      );
     }
 
     if (params?.search) {

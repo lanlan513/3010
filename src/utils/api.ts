@@ -12,10 +12,11 @@ async function request<T>(endpoint: string): Promise<T> {
 }
 
 export const api = {
-  getMicrobes: (params?: { category?: MicrobeCategory; search?: string; limit?: number; offset?: number }) => {
+  getMicrobes: (params?: { category?: MicrobeCategory; search?: string; habitat?: string; limit?: number; offset?: number }) => {
     const query = new URLSearchParams();
     if (params?.category) query.set('category', params.category);
     if (params?.search) query.set('search', params.search);
+    if (params?.habitat) query.set('habitat', params.habitat);
     if (params?.limit !== undefined) query.set('limit', String(params.limit));
     if (params?.offset !== undefined) query.set('offset', String(params.offset));
     const queryStr = query.toString();

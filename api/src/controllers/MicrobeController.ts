@@ -7,10 +7,11 @@ const validCategories: MicrobeCategory[] = ['bacteria', 'fungi', 'virus', 'archa
 export class MicrobeController {
   static getAll(req: Request, res: Response) {
     try {
-      const { category, search, limit, offset } = req.query;
+      const { category, search, habitat, limit, offset } = req.query;
       const params: {
         category?: MicrobeCategory;
         search?: string;
+        habitat?: string;
         limit?: number;
         offset?: number;
       } = {};
@@ -20,6 +21,9 @@ export class MicrobeController {
       }
       if (search && typeof search === 'string') {
         params.search = search;
+      }
+      if (habitat && typeof habitat === 'string') {
+        params.habitat = habitat;
       }
       if (limit && !isNaN(Number(limit))) {
         params.limit = Number(limit);

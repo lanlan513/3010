@@ -11,7 +11,7 @@ interface AppState {
   error: string | null;
   searchQuery: string;
   activeCategory: MicrobeCategory | null;
-  fetchMicrobes: (params?: { category?: MicrobeCategory; search?: string; limit?: number; offset?: number }) => Promise<void>;
+  fetchMicrobes: (params?: { category?: MicrobeCategory; search?: string; habitat?: string; limit?: number; offset?: number }) => Promise<void>;
   fetchMicrobeById: (id: number) => Promise<void>;
   fetchRelated: (id: number) => Promise<void>;
   fetchStats: () => Promise<void>;
