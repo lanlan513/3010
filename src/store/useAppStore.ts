@@ -133,6 +133,7 @@ interface AppState {
   activeCategory: MicrobeCategory | null;
   experiments: ExperimentRecord[];
   currentGrowthData: GrowthDataPoint[] | null;
+  simulationConditions: ExperimentConditions | null;
   comparisonExperimentIds: string[];
   fetchMicrobes: (params?: { category?: MicrobeCategory; search?: string; habitat?: string; limit?: number; offset?: number }) => Promise<void>;
   fetchMicrobeById: (id: number) => Promise<void>;
@@ -141,7 +142,7 @@ interface AppState {
   setSearchQuery: (query: string) => void;
   setActiveCategory: (category: MicrobeCategory | null) => void;
   runSimulation: (conditions: ExperimentConditions) => void;
-  saveExperiment: (name: string, conditions: ExperimentConditions, notes?: string) => ExperimentRecord | null;
+  saveExperiment: (name: string, notes?: string) => ExperimentRecord | null;
   deleteExperiment: (id: string) => void;
   clearCurrentSimulation: () => void;
   toggleComparison: (id: string) => void;
@@ -160,6 +161,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeCategory: null,
   experiments: loadExperiments(),
   currentGrowthData: null,
+  simulationConditions: null,
   comparisonExperimentIds: [],
 
   fetchMicrobes: async (params) => {
@@ -205,19 +207,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveCategory: (category) => set({ activeCategory: category }),
 
   runSimulation: (conditions) => {
-    const data = simulateGrowth(conditions);
-    set({ currentGrowthData: data });
+    const conditionsSnapshot = { ...conditions };
+    const data = simulateGrowth(conditionsSnapshot);
+    set({ currentGrowthData: data, simulationConditions: conditionsSnapshot });
   },
 
-  saveExperiment: (name, conditions, notes) => {
+  saveExperiment: (name, notes) => {
     const data = get().currentGrowthData;
-    if (!data || data.length === 0) return null;
+    const simConditions = get().simulationConditions;
+    if (!data || data.length === 0 || !simConditions) return null;
     const analysis = analyzeGrowth(data);
     const record: ExperimentRecord = {
       id: `exp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
       name,
       createdAt: Date.now(),
-      conditions,
+      conditions: { ...simConditions },
       growthData: data,
       ...analysis,
       notes,
@@ -235,7 +239,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ experiments, comparisonExperimentIds });
   },
 
-  clearCurrentSimulation: () => set({ currentGrowthData: null }),
+  clearCurrentSimulation: () => set({ currentGrowthData: null, simulationConditions: null }),
 
   toggleComparison: (id) => {
     const ids = get().comparisonExperimentIds;

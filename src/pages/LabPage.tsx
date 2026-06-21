@@ -107,6 +107,7 @@ export function LabPage() {
     microbes,
     fetchMicrobes,
     currentGrowthData,
+    simulationConditions,
     experiments,
     comparisonExperimentIds,
     runSimulation,
@@ -190,7 +191,7 @@ export function LabPage() {
 
   const handleSaveExperiment = () => {
     if (!expName.trim()) return;
-    const record = saveExperiment(expName.trim(), conditions, expNotes.trim() || undefined);
+    const record = saveExperiment(expName.trim(), expNotes.trim() || undefined);
     if (record) {
       setShowSaveModal(false);
       setExpName('');
@@ -365,14 +366,24 @@ export function LabPage() {
               </button>
             </div>
 
-            {currentGrowthData && !viewingExperiment && (
-              <button
-                onClick={() => setShowSaveModal(true)}
-                className="w-full mt-3 btn-primary-ghost"
-              >
-                <Save className="w-4 h-4" />
-                保存本次实验
-              </button>
+            {currentGrowthData && simulationConditions && !viewingExperiment && (
+              <div className="mt-3 space-y-2">
+                <div className="glass-card p-3 bg-glow-primary/5 border-glow-primary/20">
+                  <p className="font-mono text-[10px] text-text-muted/60 mb-1">
+                    本次模拟条件：
+                  </p>
+                  <p className="font-mono text-xs text-text-light">
+                    {simulationConditions.microbeName} · {simulationConditions.temperature}°C · pH {simulationConditions.ph} · 湿度 {simulationConditions.humidity}% · 营养 {simulationConditions.nutrients}%
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSaveModal(true)}
+                  className="w-full btn-primary-ghost"
+                >
+                  <Save className="w-4 h-4" />
+                  保存本次实验
+                </button>
+              </div>
             )}
           </div>
 

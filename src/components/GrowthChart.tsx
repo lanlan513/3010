@@ -31,29 +31,48 @@ export function GrowthChart({ series, height = 360, logScale = true }: GrowthCha
 
   const maxHour = Math.max(...series.flatMap((s) => s.data.map((d) => d.hour)));
   const allPopulations = series.flatMap((s) => s.data.map((d) => d.population));
-  const rawMaxPop = Math.max(...allPopulations);
-  const rawMinPop = Math.min(...allPopulations.filter((p) => p > 0));
+  const rawMaxPop = Math.max(...allPopulations, 100);
+  const positivePops = allPopulations.filter((p) => p > 0);
+  const rawMinPop = positivePops.length > 0 ? Math.min(...positivePops) : 1;
 
-  const yMin = logScale ? Math.max(1, Math.floor(Math.log10(rawMinPop || 1))) : 0;
-  const yMax = logScale
-    ? Math.ceil(Math.log10(rawMaxPop || 1))
-    : rawMaxPop * 1.1;
+  let yMin: number;
+  let yMax: number;
+
+  if (logScale) {
+    const logMin = Math.log10(Math.max(1, rawMinPop));
+    const logMax = Math.log10(Math.max(10, rawMaxPop));
+    yMin = Math.max(0, Math.floor(logMin) - 0.5);
+    yMax = Math.ceil(logMax) + 0.5;
+    if (yMax <= yMin) {
+      yMax = yMin + 1;
+    }
+  } else {
+    yMin = 0;
+    yMax = rawMaxPop * 1.1;
+    if (yMax <= 0) yMax = 100;
+  }
 
   const xScale = (hour: number) => padding.left + (hour / maxHour) * chartWidth;
   const yScale = (pop: number) => {
+    const clampedPop = Math.max(logScale ? 1 : 0, pop);
     if (logScale) {
-      const logPop = Math.max(yMin, Math.log10(Math.max(1, pop)));
-      return padding.top + chartHeight - ((logPop - yMin) / (yMax - yMin)) * chartHeight;
+      const logPop = Math.log10(clampedPop);
+      const normalized = (logPop - yMin) / (yMax - yMin);
+      const clampedNormalized = Math.max(0, Math.min(1, normalized));
+      return padding.top + chartHeight - clampedNormalized * chartHeight;
     }
-    return padding.top + chartHeight - (pop / yMax) * chartHeight;
+    const normalized = clampedPop / yMax;
+    const clampedNormalized = Math.max(0, Math.min(1, normalized));
+    return padding.top + chartHeight - clampedNormalized * chartHeight;
   };
 
   const yTicksCount = 6;
   const yTicks = Array.from({ length: yTicksCount + 1 }, (_, i) => {
-    const value = logScale
-      ? Math.pow(10, yMin + (i / yTicksCount) * (yMax - yMin))
-      : (i / yTicksCount) * yMax;
-    return value;
+    if (logScale) {
+      const logVal = yMin + (i / yTicksCount) * (yMax - yMin);
+      return Math.pow(10, logVal);
+    }
+    return (i / yTicksCount) * yMax;
   });
 
   const xTicksCount = Math.min(8, maxHour);
