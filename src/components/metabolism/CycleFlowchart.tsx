@@ -7,6 +7,8 @@ interface CycleFlowchartProps {
   onStepClick?: (step: MetabolicPathwayStep) => void;
   onEdgeClick?: (edge: CycleFlowEdge) => void;
   highlightMicrobeId?: number | null;
+  highlightStepId?: string | null;
+  selectedEdge?: CycleFlowEdge | null;
 }
 
 const METABOLISM_COLORS: Record<MetabolismType, string> = {
@@ -78,7 +80,7 @@ function computeNodePositions(steps: MetabolicPathwayStep[], edges: CycleFlowEdg
   return positions;
 }
 
-export function CycleFlowchart({ data, onStepClick, onEdgeClick, highlightMicrobeId }: CycleFlowchartProps) {
+export function CycleFlowchart({ data, onStepClick, onEdgeClick, highlightMicrobeId, highlightStepId, selectedEdge }: CycleFlowchartProps) {
   const [hoveredStep, setHoveredStep] = useState<string | null>(null);
   const [hoveredEdge, setHoveredEdge] = useState<string | null>(null);
   const [selectedStep, setSelectedStep] = useState<string | null>(null);
@@ -88,12 +90,14 @@ export function CycleFlowchart({ data, onStepClick, onEdgeClick, highlightMicrob
   const cycleColor = CYCLE_COLORS[data.cycle];
 
   const isStepHighlighted = (stepId: string) => {
+    if (highlightStepId && highlightStepId === stepId) return true;
     if (!highlightMicrobeId) return false;
     const step = data.steps.find((s) => s.id === stepId);
     return step ? step.microbeIds.includes(highlightMicrobeId) : false;
   };
 
   const isEdgeHighlighted = (edge: CycleFlowEdge) => {
+    if (selectedEdge && selectedEdge.from === edge.from && selectedEdge.to === edge.to) return true;
     if (!highlightMicrobeId) return false;
     return edge.microbeIds.includes(highlightMicrobeId);
   };
@@ -231,7 +235,7 @@ export function CycleFlowchart({ data, onStepClick, onEdgeClick, highlightMicrob
 
           const highlighted = isStepHighlighted(step.id);
           const isHovered = hoveredStep === step.id;
-          const isSelected = selectedStep === step.id;
+          const isSelected = selectedStep === step.id || highlightStepId === step.id;
 
           return (
             <g
@@ -281,66 +285,72 @@ export function CycleFlowchart({ data, onStepClick, onEdgeClick, highlightMicrob
         })}
       </svg>
 
-      {selectedStepData && (
-        <div className="glass-card p-5 mt-4 animate-fade-in-up">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h4 className="font-display text-xl text-text-light">{selectedStepData.label}</h4>
-              <span
-                className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-mono border"
-                style={{
-                  color: cycleColor,
-                  borderColor: cycleColor + '66',
-                  backgroundColor: cycleColor + '15',
-                }}
+      {(selectedStepData || (highlightStepId && data.steps.find((s) => s.id === highlightStepId))) && (() => {
+        const currentStep = selectedStepData || data.steps.find((s) => s.id === highlightStepId);
+        if (!currentStep) return null;
+        return (
+          <div className="glass-card p-5 mt-4 animate-fade-in-up">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h4 className="font-display text-xl text-text-light">
+                  {currentStep.label}
+                </h4>
+                <span
+                  className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-mono border"
+                  style={{
+                    color: cycleColor,
+                    borderColor: cycleColor + '66',
+                    backgroundColor: cycleColor + '15',
+                  }}
+                >
+                  {METABOLISM_TYPE_LABELS[currentStep.metabolismType]}
+                </span>
+              </div>
+              <button
+                onClick={() => setSelectedStep(null)}
+                className="text-text-muted hover:text-text-light transition-colors text-sm"
               >
-                {METABOLISM_TYPE_LABELS[selectedStepData.metabolismType]}
-              </span>
+                ✕
+              </button>
             </div>
-            <button
-              onClick={() => setSelectedStep(null)}
-              className="text-text-muted hover:text-text-light transition-colors text-sm"
-            >
-              ✕
-            </button>
+            <p className="font-mono text-sm text-text-muted leading-relaxed mb-3">
+              {currentStep.description}
+            </p>
+            {currentStep.reactants.length > 0 && (
+              <div className="mb-2">
+                <span className="font-mono text-[10px] text-text-muted/60">反应物：</span>
+                <span className="font-mono text-sm text-glow-primary ml-2">
+                  {currentStep.reactants.join(' + ')}
+                </span>
+              </div>
+            )}
+            {currentStep.products.length > 0 && (
+              <div className="mb-2">
+                <span className="font-mono text-[10px] text-text-muted/60">产物：</span>
+                <span className="font-mono text-sm text-glow-orange ml-2">
+                  {currentStep.products.join(' + ')}
+                </span>
+              </div>
+            )}
+            {currentStep.energyOutput && (
+              <div className="mb-2">
+                <span className="font-mono text-[10px] text-text-muted/60">能量：</span>
+                <span className="font-mono text-sm text-glow-gold ml-2">
+                  {currentStep.energyOutput}
+                </span>
+              </div>
+            )}
+            {currentStep.microbeIds.length > 0 && (
+              <div>
+                <span className="font-mono text-[10px] text-text-muted/60">参与微生物 ID：</span>
+                <span className="font-mono text-sm text-text-light ml-2">
+                  {currentStep.microbeIds.join(', ')}
+                </span>
+              </div>
+            )}
           </div>
-          <p className="font-mono text-sm text-text-muted leading-relaxed mb-3">
-            {selectedStepData.description}
-          </p>
-          {selectedStepData.reactants.length > 0 && (
-            <div className="mb-2">
-              <span className="font-mono text-[10px] text-text-muted/60">反应物：</span>
-              <span className="font-mono text-sm text-glow-primary ml-2">
-                {selectedStepData.reactants.join(' + ')}
-              </span>
-            </div>
-          )}
-          {selectedStepData.products.length > 0 && (
-            <div className="mb-2">
-              <span className="font-mono text-[10px] text-text-muted/60">产物：</span>
-              <span className="font-mono text-sm text-glow-orange ml-2">
-                {selectedStepData.products.join(' + ')}
-              </span>
-            </div>
-          )}
-          {selectedStepData.energyOutput && (
-            <div className="mb-2">
-              <span className="font-mono text-[10px] text-text-muted/60">能量：</span>
-              <span className="font-mono text-sm text-glow-gold ml-2">
-                {selectedStepData.energyOutput}
-              </span>
-            </div>
-          )}
-          {selectedStepData.microbeIds.length > 0 && (
-            <div>
-              <span className="font-mono text-[10px] text-text-muted/60">参与微生物 ID：</span>
-              <span className="font-mono text-sm text-text-light ml-2">
-                {selectedStepData.microbeIds.join(', ')}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

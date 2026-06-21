@@ -6,11 +6,11 @@ import { microbeMetabolismProfiles, cycleDataMap } from '../../data/metabolismDa
 
 interface PathwaySearchProps {
   cycleData: BiogeochemicalCycleData;
-  onMicrobeSelect?: (id: number) => void;
-  onEdgeSelect?: (from: string, to: string) => void;
+  onMicrobeSelect?: (id: number, cycle: BiogeochemicalCycle) => void;
+  onEdgeSelect?: (from: string, to: string, cycle: BiogeochemicalCycle) => void;
+  onStepSelect?: (stepId: string, cycle: BiogeochemicalCycle) => void;
   onCycleChange?: (cycle: BiogeochemicalCycle) => void;
 }
-
 interface SearchResult {
   type: 'microbe' | 'pathway' | 'step';
   title: string;
@@ -23,7 +23,8 @@ interface SearchResult {
   edgeTo?: string;
 }
 
-export function PathwaySearch({ cycleData, onMicrobeSelect, onEdgeSelect, onCycleChange }: PathwaySearchProps) {
+export function PathwaySearch({ cycleData, onMicrobeSelect, onEdgeSelect, onStepSelect, onCycleChange }: PathwaySearchProps) {
+  void onCycleChange;
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
 
@@ -118,17 +119,15 @@ export function PathwaySearch({ cycleData, onMicrobeSelect, onEdgeSelect, onCycl
   };
 
   const handleResultClick = (result: SearchResult) => {
-    if (result.cycle !== cycleData.cycle && onCycleChange) {
-      onCycleChange(result.cycle);
+    if (result.type === 'microbe' && result.microbeId) {
+      onMicrobeSelect?.(result.microbeId, result.cycle);
+    } else if (result.type === 'pathway' && result.edgeFrom && result.edgeTo) {
+      onEdgeSelect?.(result.edgeFrom, result.edgeTo, result.cycle);
+    } else if (result.type === 'step' && result.stepId) {
+      onStepSelect?.(result.stepId, result.cycle);
     }
-    setTimeout(() => {
-      if (result.type === 'microbe' && result.microbeId) {
-        onMicrobeSelect?.(result.microbeId);
-      } else if (result.type === 'pathway' && result.edgeFrom && result.edgeTo) {
-        onEdgeSelect?.(result.edgeFrom, result.edgeTo);
-      }
-    }, 100);
     setQuery('');
+    setIsFocused(false);
   };
 
   return (
@@ -222,29 +221,30 @@ export function PathwaySearch({ cycleData, onMicrobeSelect, onEdgeSelect, onCycl
       {!query && (
         <div className="mt-3 flex flex-wrap gap-2">
           {[
-            { tag: '光合固碳', hint: 'carbon' },
-            { tag: '固氮', hint: 'nitrogen' },
-            { tag: '发酵', hint: 'carbon' },
-            { tag: '产甲烷', hint: 'carbon' },
-            { tag: '硫酸盐还原', hint: 'sulfur' },
-            { tag: '反硝化', hint: 'nitrogen' },
-            { tag: '硫氧化', hint: 'sulfur' },
-            { tag: 'CO₂', hint: 'carbon' },
-          ].map(({ tag, hint }) => (
+            { tag: '光合固碳', type: 'edge' as const, cycle: 'carbon' as const, from: 'c-co2', to: 'c-organic' },
+            { tag: '固氮', type: 'edge' as const, cycle: 'nitrogen' as const, from: 'n-n2', to: 'n-nh4' },
+            { tag: '发酵', type: 'edge' as const, cycle: 'carbon' as const, from: 'c-organic', to: 'c-dead' },
+            { tag: '产甲烷', type: 'edge' as const, cycle: 'carbon' as const, from: 'c-organic', to: 'c-ch4' },
+            { tag: '硫酸盐还原', type: 'edge' as const, cycle: 'sulfur' as const, from: 's-so4', to: 's-h2s' },
+            { tag: '反硝化', type: 'edge' as const, cycle: 'nitrogen' as const, from: 'n-no3', to: 'n-n2' },
+            { tag: '硫氧化', type: 'edge' as const, cycle: 'sulfur' as const, from: 's-h2s', to: 's-so4' },
+            { tag: 'CO₂', type: 'step' as const, cycle: 'carbon' as const, stepId: 'c-co2' },
+          ].map((item) => (
             <button
-              key={tag}
+              key={item.tag}
               onClick={() => {
-                setQuery(tag);
-                const targetCycle = hint as BiogeochemicalCycle;
-                if (targetCycle !== cycleData.cycle && onCycleChange) {
-                  onCycleChange(targetCycle);
+                setQuery(item.tag);
+                if (item.type === 'edge') {
+                  onEdgeSelect?.(item.from, item.to, item.cycle);
+                } else {
+                  onStepSelect?.(item.stepId, item.cycle);
                 }
               }}
               className="px-3 py-1 rounded-full border border-glow-primary/20 text-text-muted/60
                          hover:border-glow-primary/50 hover:text-glow-primary transition-all
                          font-mono text-[11px]"
             >
-              {tag}
+              {item.tag}
             </button>
           ))}
         </div>

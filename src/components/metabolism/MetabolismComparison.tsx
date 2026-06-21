@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { GitCompare, X, ChevronDown, ChevronUp, Zap, TrendingUp, Activity, Award } from 'lucide-react';
 import type { Microbe, BiogeochemicalCycle, MetabolismType } from '../../../shared/types';
 import { METABOLISM_TYPE_LABELS, CYCLE_LABELS, CYCLE_COLORS, CATEGORY_LABELS, CATEGORY_COLORS } from '../../../shared/types';
@@ -6,10 +6,11 @@ import { microbeMetabolismProfiles } from '../../data/metabolismData';
 
 interface MetabolismComparisonProps {
   microbes: Microbe[];
-  onMicrobeClick?: (id: number) => void;
+  onMicrobeClick?: (id: number, cycle?: BiogeochemicalCycle) => void;
+  onPathwayClick?: (microbeId: number, cycle: BiogeochemicalCycle, stepId: string) => void;
 }
 
-export function MetabolismComparison({ microbes, onMicrobeClick }: MetabolismComparisonProps) {
+export function MetabolismComparison({ microbes, onMicrobeClick, onPathwayClick }: MetabolismComparisonProps) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [expandedMicrobe, setExpandedMicrobe] = useState<number | null>(null);
 
@@ -321,7 +322,7 @@ export function MetabolismComparison({ microbes, onMicrobeClick }: MetabolismCom
                     if (cycleSteps.size === 0) return null;
 
                     return (
-                      <>
+                      <Fragment key={cycle}>
                         <tr key={`cycle-header-${cycle}`}>
                           <td
                             colSpan={2 + selectedProfiles.length}
@@ -386,7 +387,7 @@ export function MetabolismComparison({ microbes, onMicrobeClick }: MetabolismCom
                             })}
                           </tr>
                         ))}
-                      </>
+                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -418,8 +419,16 @@ export function MetabolismComparison({ microbes, onMicrobeClick }: MetabolismCom
                     key={profile.microbeId}
                     className="glass-card p-4 cursor-pointer hover:border-glow-primary/40 transition-all"
                     onClick={() => {
+                      const cycleCounts = allCycles.map((cycle) => ({
+                        cycle,
+                        count: profile.pathways.filter((pw) => pw.cycle === cycle).length,
+                      }));
+                      const topCycle = cycleCounts.sort((a, b) => b.count - a.count)[0];
                       setExpandedMicrobe(isExpanded ? null : profile.microbeId);
-                      onMicrobeClick?.(profile.microbeId);
+                      onMicrobeClick?.(
+                        profile.microbeId,
+                        topCycle && topCycle.count > 0 ? topCycle.cycle : undefined
+                      );
                     }}
                   >
                     <div className="flex items-center justify-between mb-3">
@@ -485,7 +494,14 @@ export function MetabolismComparison({ microbes, onMicrobeClick }: MetabolismCom
                     {isExpanded && (
                       <div className="mt-3 pt-3 border-t border-glow-primary/10 space-y-2 animate-fade-in-up">
                         {profile.pathways.map((pw, idx) => (
-                          <div key={idx} className="flex items-start gap-2">
+                          <button
+                            key={idx}
+                            className="w-full text-left flex items-start gap-2 p-1.5 -mx-1.5 rounded-lg hover:bg-glow-primary/10 transition-colors"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onPathwayClick?.(profile.microbeId, pw.cycle, pw.stepId);
+                            }}
+                          >
                             <Zap className="w-3 h-3 mt-0.5 shrink-0" style={{ color: CYCLE_COLORS[pw.cycle] }} />
                             <div className="flex-1 min-w-0">
                               <p className="font-mono text-[11px] text-text-light">{pw.role}</p>
@@ -505,7 +521,7 @@ export function MetabolismComparison({ microbes, onMicrobeClick }: MetabolismCom
                                 </span>
                               </div>
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     )}

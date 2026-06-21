@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { Sparkles, Atom, Leaf, Droplets, FlaskConical, GitCompare, Info } from 'lucide-react';
 import { useAppStore } from '../store/useAppStore';
 import { CycleFlowchart } from '../components/metabolism/CycleFlowchart';
@@ -9,6 +9,15 @@ import type { BiogeochemicalCycle, CycleFlowEdge, MetabolicPathwayStep } from '.
 import { CYCLE_LABELS, CYCLE_COLORS, METABOLISM_TYPE_LABELS, CATEGORY_COLORS, CATEGORY_LABELS } from '../../shared/types';
 
 type TabType = 'flowchart' | 'comparison';
+
+interface NavigationTarget {
+  cycle: BiogeochemicalCycle;
+  type: 'microbe' | 'step' | 'edge';
+  microbeId?: number;
+  stepId?: string;
+  edgeFrom?: string;
+  edgeTo?: string;
+}
 
 const cycleIcons: Record<BiogeochemicalCycle, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   carbon: Atom,
@@ -45,14 +54,99 @@ export function MetabolismWorkshopPage() {
   const [activeCycle, setActiveCycle] = useState<BiogeochemicalCycle>('carbon');
   const [activeTab, setActiveTab] = useState<TabType>('flowchart');
   const [highlightMicrobeId, setHighlightMicrobeId] = useState<number | null>(null);
+  const [highlightStepId, setHighlightStepId] = useState<string | null>(null);
   const [selectedEdgeInfo, setSelectedEdgeInfo] = useState<CycleFlowEdge | null>(null);
   const [showIntro, setShowIntro] = useState(true);
+  const flowchartRef = useRef<HTMLDivElement>(null);
+  const pendingTargetRef = useRef<NavigationTarget | null>(null);
 
   useEffect(() => {
     fetchMicrobes();
   }, [fetchMicrobes]);
 
   const currentCycleData = cycleDataMap[activeCycle];
+
+  const scrollToFlowchart = useCallback((delay = 200) => {
+    setTimeout(() => {
+      if (flowchartRef.current) {
+        const el = flowchartRef.current;
+        if (!el.id) el.id = 'metabolism-flowchart-anchor';
+        const rect = el.getBoundingClientRect();
+        const target = window.pageYOffset + rect.top - 100;
+        try {
+          window.location.hash = '';
+          window.location.hash = 'metabolism-flowchart-anchor';
+        } catch { /* ignore */ }
+        try {
+          window.scrollTo({
+            top: Math.max(0, target),
+            behavior: 'smooth' as ScrollBehavior,
+          });
+        } catch {
+          try { window.scrollTo(0, Math.max(0, target)); } catch { /* ignore */ }
+        }
+      }
+    }, delay);
+  }, []);
+
+  useEffect(() => {
+    const needsScroll = activeTab === 'flowchart' && (highlightMicrobeId || highlightStepId || selectedEdgeInfo);
+    if (needsScroll) {
+      scrollToFlowchart(250);
+    }
+  }, [activeTab, highlightMicrobeId, highlightStepId, selectedEdgeInfo, scrollToFlowchart]);
+
+  const applyNavigationTarget = useCallback((target: NavigationTarget) => {
+    const cycleData = cycleDataMap[target.cycle];
+
+    setHighlightMicrobeId(null);
+    setHighlightStepId(null);
+    setSelectedEdgeInfo(null);
+
+    if (target.type === 'microbe' && target.microbeId) {
+      setHighlightMicrobeId(target.microbeId);
+    } else if (target.type === 'step' && target.stepId) {
+      setHighlightStepId(target.stepId);
+      const step = cycleData?.steps.find((s) => s.id === target.stepId);
+      if (step && step.microbeIds.length > 0) {
+        setHighlightMicrobeId(step.microbeIds[0]);
+      }
+    } else if (target.type === 'edge' && target.edgeFrom && target.edgeTo) {
+      const edge = cycleData?.edges.find(
+        (e) => e.from === target.edgeFrom && e.to === target.edgeTo
+      );
+      if (edge) {
+        setSelectedEdgeInfo(edge);
+      }
+    }
+  }, []);
+
+  const navigateToTarget = useCallback((target: NavigationTarget) => {
+    pendingTargetRef.current = target;
+
+    const needsTabSwitch = activeTab !== 'flowchart';
+    const needsCycleSwitch = activeCycle !== target.cycle;
+
+    if (needsTabSwitch) {
+      setActiveTab('flowchart');
+    }
+
+    if (needsCycleSwitch) {
+      setActiveCycle(target.cycle);
+    }
+
+    if (!needsTabSwitch && !needsCycleSwitch) {
+      applyNavigationTarget(target);
+      pendingTargetRef.current = null;
+    }
+  }, [activeTab, activeCycle, applyNavigationTarget]);
+
+  useEffect(() => {
+    if (pendingTargetRef.current && pendingTargetRef.current.cycle === activeCycle && activeTab === 'flowchart') {
+      applyNavigationTarget(pendingTargetRef.current);
+      pendingTargetRef.current = null;
+    }
+  }, [activeCycle, activeTab, applyNavigationTarget]);
 
   const activeCycleMicrobes = useMemo(() => {
     if (!currentCycleData) return [];
@@ -63,8 +157,10 @@ export function MetabolismWorkshopPage() {
   }, [currentCycleData, microbes]);
 
   const handleCycleChange = (cycle: BiogeochemicalCycle) => {
+    pendingTargetRef.current = null;
     setActiveCycle(cycle);
     setHighlightMicrobeId(null);
+    setHighlightStepId(null);
     setSelectedEdgeInfo(null);
   };
 
@@ -76,17 +172,19 @@ export function MetabolismWorkshopPage() {
     if (step.microbeIds.length > 0) {
       setHighlightMicrobeId(highlightMicrobeId === step.microbeIds[0] ? null : step.microbeIds[0]);
     }
+    setHighlightStepId(highlightStepId === step.id ? null : step.id);
   };
 
-  const handleSearchMicrobeSelect = (id: number) => {
-    setHighlightMicrobeId(highlightMicrobeId === id ? null : id);
+  const handleSearchMicrobeSelect = (id: number, cycle: BiogeochemicalCycle) => {
+    navigateToTarget({ cycle, type: 'microbe', microbeId: id });
   };
 
-  const handleSearchEdgeSelect = (from: string, to: string) => {
-    const edge = currentCycleData?.edges.find((e) => e.from === from && e.to === to);
-    if (edge) {
-      setSelectedEdgeInfo(edge);
-    }
+  const handleSearchEdgeSelect = (from: string, to: string, cycle: BiogeochemicalCycle) => {
+    navigateToTarget({ cycle, type: 'edge', edgeFrom: from, edgeTo: to });
+  };
+
+  const handleSearchStepSelect = (stepId: string, cycle: BiogeochemicalCycle) => {
+    navigateToTarget({ cycle, type: 'step', stepId });
   };
 
   const highlightMicrobe = highlightMicrobeId
@@ -140,6 +238,7 @@ export function MetabolismWorkshopPage() {
           cycleData={currentCycleData}
           onMicrobeSelect={handleSearchMicrobeSelect}
           onEdgeSelect={handleSearchEdgeSelect}
+          onStepSelect={handleSearchStepSelect}
           onCycleChange={handleCycleChange}
         />
       </div>
@@ -293,8 +392,9 @@ export function MetabolismWorkshopPage() {
         </div>
       </div>
 
-      {activeTab === 'flowchart' ? (
-        <div className="grid lg:grid-cols-[1fr_320px] gap-6">
+      <div ref={flowchartRef}>
+        {activeTab === 'flowchart' ? (
+          <div className="grid lg:grid-cols-[1fr_320px] gap-6">
           <div className="glass-card p-6">
             <div className="flex items-center justify-between mb-4">
               <h3
@@ -303,9 +403,13 @@ export function MetabolismWorkshopPage() {
               >
                 {CYCLE_LABELS[activeCycle]}流程图
               </h3>
-              {highlightMicrobeId && (
+              {(highlightMicrobeId || highlightStepId || selectedEdgeInfo) && (
                 <button
-                  onClick={() => setHighlightMicrobeId(null)}
+                  onClick={() => {
+                    setHighlightMicrobeId(null);
+                    setHighlightStepId(null);
+                    setSelectedEdgeInfo(null);
+                  }}
                   className="font-mono text-xs text-text-muted hover:text-glow-red transition-colors"
                 >
                   清除高亮
@@ -317,6 +421,8 @@ export function MetabolismWorkshopPage() {
               onStepClick={handleStepClick}
               onEdgeClick={handleEdgeClick}
               highlightMicrobeId={highlightMicrobeId}
+              highlightStepId={highlightStepId}
+              selectedEdge={selectedEdgeInfo}
             />
 
             {selectedEdgeInfo && (
@@ -503,12 +609,24 @@ export function MetabolismWorkshopPage() {
       ) : (
         <MetabolismComparison
           microbes={microbes}
-          onMicrobeClick={(id) => {
-            setActiveTab('flowchart');
-            setHighlightMicrobeId(id);
+          onMicrobeClick={(id, cycle) => {
+            navigateToTarget({
+              cycle: cycle || activeCycle,
+              type: 'microbe',
+              microbeId: id,
+            });
+          }}
+          onPathwayClick={(microbeId, cycle, stepId) => {
+            navigateToTarget({
+              cycle,
+              type: 'step',
+              microbeId,
+              stepId,
+            });
           }}
         />
       )}
+      </div>
     </div>
   );
 }
