@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Search,
@@ -119,14 +119,30 @@ export function AbilityAtlasPage() {
     'medicine',
   ];
 
-  const toggleAssociation = (tag: AbilityTag) => {
-    const next = new Set(expandedAssociations);
-    if (next.has(tag)) {
-      next.delete(tag);
-    } else {
-      next.add(tag);
-    }
-    setExpandedAssociations(next);
+  const toggleAssociationPair = (tag1: AbilityTag, tag2: AbilityTag) => {
+    setExpandedAssociations((prev) => {
+      const next = new Set(prev);
+      const shouldExpand = !(next.has(tag1) && next.has(tag2));
+      if (shouldExpand) {
+        next.add(tag1);
+        next.add(tag2);
+      } else {
+        next.delete(tag1);
+        next.delete(tag2);
+      }
+      return next;
+    });
+  };
+
+  const isAssociationExpanded = (tag1: AbilityTag, tag2: AbilityTag) =>
+    expandedAssociations.has(tag1) && expandedAssociations.has(tag2);
+
+  const microbeListRef = useRef<HTMLDivElement>(null);
+
+  const scrollToMicrobeList = () => {
+    setTimeout(() => {
+      microbeListRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   };
 
   return (
@@ -593,7 +609,7 @@ export function AbilityAtlasPage() {
                           )}
                         </div>
 
-                        <h4 className="font-display text-xl font-semibold text-text-light mb-6">
+                        <h4 ref={microbeListRef} className="font-display text-xl font-semibold text-text-light mb-6">
                           具备此能力的微生物
                           <span className="ml-2 font-mono text-sm text-text-muted/60">
                             按能力强度排序
@@ -768,6 +784,7 @@ export function AbilityAtlasPage() {
                             onClick={() => {
                               setActiveTag(item.tag);
                               setActiveTab('browse');
+                              scrollToMicrobeList();
                             }}
                             className="p-2 rounded-full hover:bg-white/5 text-text-muted hover:text-glow-primary transition-colors"
                           >
@@ -809,9 +826,7 @@ export function AbilityAtlasPage() {
                   if (!info1 || !info2) return null;
                   const color1 = ABILITY_DIMENSION_COLORS[info1.dimension];
                   const color2 = ABILITY_DIMENSION_COLORS[info2.dimension];
-                  const isExpanded =
-                    expandedAssociations.has(assoc.tag1) &&
-                    expandedAssociations.has(assoc.tag2);
+                  const isExpanded = isAssociationExpanded(assoc.tag1, assoc.tag2);
                   const microbes1 = getMicrobesByAbility(assoc.tag1).map((m) => m.microbeId);
                   const microbes2 = getMicrobesByAbility(assoc.tag2).map((m) => m.microbeId);
                   const sharedMicrobeIds = microbes1.filter((id) => microbes2.includes(id));
@@ -825,10 +840,7 @@ export function AbilityAtlasPage() {
                       className="glass-card overflow-hidden transition-all duration-300"
                     >
                       <button
-                        onClick={() => {
-                          toggleAssociation(assoc.tag1);
-                          toggleAssociation(assoc.tag2);
-                        }}
+                        onClick={() => toggleAssociationPair(assoc.tag1, assoc.tag2)}
                         className="w-full p-5 text-left"
                       >
                         <div className="flex items-center gap-4">
