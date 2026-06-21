@@ -275,7 +275,7 @@ export function SpecimenHallPage() {
               </h4>
               <p className="font-mono text-xs text-text-muted/80 leading-relaxed">
                 质量评分：数据可信度、来源可追溯性；完整度指数：
-                20+子模块覆盖度。两项指标均>90%方可进入核心馆藏。
+                20+子模块覆盖度。两项指标均{'>'}90%方可进入核心馆藏。
               </p>
             </div>
             <div className="p-5 rounded-2xl border border-glow-red/15 bg-glow-red/5">
@@ -374,9 +374,9 @@ export function SpecimenHallPage() {
                           : 'hover:bg-white/5'
                       }`}
                       style={{
-                        background: isActive ? `${color}20` : 'transparent',
+                        background: isActive ? color + '20' : 'transparent',
                         color: isActive ? color : '#94a3b8',
-                        border: `1px solid ${isActive ? `${color}50` : 'rgba(255,255,255,0.1)'}`,
+                        border: '1px solid ' + (isActive ? color + '50' : 'rgba(255,255,255,0.1)'),
                       }}
                     >
                       {isAll ? '全部' : CATEGORY_LABELS[cat]}
